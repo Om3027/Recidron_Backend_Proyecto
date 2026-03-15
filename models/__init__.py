@@ -119,8 +119,8 @@ def init_db():
             id          INT PRIMARY KEY AUTO_INCREMENT,
             usuario_id  INT NOT NULL,
             token       VARCHAR(150)    NOT NULL UNIQUE,
-            creado_en   DATETIME    DEFAULT CURRENT_TIMESTAMP,
-            expira_en   DATETIME    NOT NULL,
+            creado_en   VARCHAR(150)    DEFAULT CURRENT_TIMESTAMP,
+            expira_en   VARCHAR(150)    NOT NULL,
             activa      INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );

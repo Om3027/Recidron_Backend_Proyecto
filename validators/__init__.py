@@ -97,7 +97,7 @@ class GeoCreate(BaseModel):
     latitud:    float
     longitud:   float
     altitud:    Optional[float] = None
-    precision:  Optional[float] = None
+    precision_gps:  Optional[float] = None
     reporte_id: int
 
 

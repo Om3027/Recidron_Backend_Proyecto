@@ -22,8 +22,8 @@ def crear_geo(geo: GeoCreate):
         conn.close(); raise HTTPException(status_code=404, detail="El reporte no existe")
     try:
         cursor = conn.execute(
-            "INSERT INTO geolocalizaciones (latitud, longitud, altitud, precision, reporte_id) VALUES (%s,%s,%s,%s,%s)",
-            (geo.latitud, geo.longitud, geo.altitud, geo.precision, geo.reporte_id)
+            "INSERT INTO geolocalizaciones (latitud, longitud, altitud, precision_gps, reporte_id) VALUES (%s,%s,%s,%s,%s)",
+            (geo.latitud, geo.longitud, geo.altitud, geo.precision_gps, geo.reporte_id)
         )
         conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
         return {"id": nuevo_id, **geo.dict()}
