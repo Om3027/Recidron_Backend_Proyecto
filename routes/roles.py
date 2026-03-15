@@ -1,4 +1,4 @@
-import sqlite3
+import pymysql
 from fastapi import APIRouter, HTTPException
 from models import get_connection
 from validators import RolCreate
@@ -19,12 +19,12 @@ def crear_rol(rol: RolCreate):
     """Registra un nuevo rol en el sistema."""
     conn = get_connection()
     try:
-        cursor = conn.execute("INSERT INTO roles (nombre_rol) VALUES (?)", (rol.nombre_rol,))
+        cursor = conn.execute("INSERT INTO roles (nombre_rol) VALUES (%s)", (rol.nombre_rol,))
         conn.commit()
         nuevo_id = cursor.lastrowid
         conn.close()
         return {"id": nuevo_id, "nombre_rol": rol.nombre_rol}
-    except sqlite3.IntegrityError:
+    except pymysql.err.IntegrityError:
         conn.close()
         raise HTTPException(status_code=422, detail="El rol ya existe")
 
@@ -32,7 +32,7 @@ def crear_rol(rol: RolCreate):
 def obtener_rol(id: int):
     """Retorna un rol específico. Error 404 si no existe."""
     conn = get_connection()
-    rol = conn.execute("SELECT * FROM roles WHERE id = ?", (id,)).fetchone()
+    rol = conn.execute("SELECT * FROM roles WHERE id = %s", (id,)).fetchone()
     conn.close()
     if not rol: error_404("Rol", id)
     return dict(rol)
@@ -41,9 +41,9 @@ def obtener_rol(id: int):
 def actualizar_rol(id: int, rol: RolCreate):
     """Modifica el nombre de un rol existente."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM roles WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Rol", id)
-    conn.execute("UPDATE roles SET nombre_rol = ? WHERE id = ?", (rol.nombre_rol, id))
+    conn.execute("UPDATE roles SET nombre_rol = %s WHERE id = %s", (rol.nombre_rol, id))
     conn.commit(); conn.close()
     return {"id": id, "nombre_rol": rol.nombre_rol}
 
@@ -51,8 +51,8 @@ def actualizar_rol(id: int, rol: RolCreate):
 def eliminar_rol(id: int):
     """Elimina un rol del sistema."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM roles WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Rol", id)
-    conn.execute("DELETE FROM roles WHERE id = ?", (id,))
+    conn.execute("DELETE FROM roles WHERE id = %s", (id,))
     conn.commit(); conn.close()
     return {"mensaje": f"Rol {id} eliminado exitosamente"}

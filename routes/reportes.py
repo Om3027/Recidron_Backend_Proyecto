@@ -25,12 +25,12 @@ def crear_reporte(reporte: ReporteCreate):
         ("tamanos",       reporte.tamano_id,         "Tamano"),
     ]
     for tabla, fk_id, nombre in checks:
-        if not conn.execute(f"SELECT id FROM {tabla} WHERE id = ?", (fk_id,)).fetchone():
+        if not conn.execute(f"SELECT id FROM {tabla} WHERE id = %s", (fk_id,)).fetchone():
             conn.close()
             raise HTTPException(status_code=404, detail=f"{nombre} con id {fk_id} no existe")
 
     cursor = conn.execute(
-        "INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) VALUES (%s,%s,%s,%s,%s,%s)",
         (reporte.descripcion, reporte.usuario_id, reporte.tipo_residuo_id,
         reporte.material_id, reporte.zona_id, reporte.tamano_id)
     )
@@ -41,7 +41,7 @@ def crear_reporte(reporte: ReporteCreate):
 def obtener_reporte(id: int):
     """Retorna un reporte específico con todos sus detalles."""
     conn = get_connection()
-    r = conn.execute("SELECT * FROM reportes WHERE id = ?", (id,)).fetchone()
+    r = conn.execute("SELECT * FROM reportes WHERE id = %s", (id,)).fetchone()
     conn.close()
     if not r: error_404("Reporte", id)
     return dict(r)
@@ -50,12 +50,12 @@ def obtener_reporte(id: int):
 def actualizar_reporte(id: int, datos: ReporteUpdate):
     """Modifica los datos de un reporte existente."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM reportes WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Reporte", id)
     campos = {k: v for k, v in datos.dict().items() if v is not None}
     if campos:
-        set_clause = ", ".join([f"{k} = ?" for k in campos])
-        conn.execute(f"UPDATE reportes SET {set_clause} WHERE id = ?", list(campos.values()) + [id])
+        set_clause = ", ".join([f"{k} = %s" for k in campos])
+        conn.execute(f"UPDATE reportes SET {set_clause} WHERE id = %s", list(campos.values()) + [id])
         conn.commit()
     conn.close()
     return {"mensaje": f"Reporte {id} actualizado", "campos": list(campos.keys())}
@@ -64,8 +64,8 @@ def actualizar_reporte(id: int, datos: ReporteUpdate):
 def eliminar_reporte(id: int):
     """Elimina un reporte de residuo."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM reportes WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Reporte", id)
-    conn.execute("DELETE FROM reportes WHERE id = ?", (id,))
+    conn.execute("DELETE FROM reportes WHERE id = %s", (id,))
     conn.commit(); conn.close()
     return {"mensaje": f"Reporte {id} eliminado exitosamente"}

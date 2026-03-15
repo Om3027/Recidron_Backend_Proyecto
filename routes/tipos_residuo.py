@@ -1,4 +1,4 @@
-import sqlite3
+import pymysql
 from fastapi import APIRouter, HTTPException
 from models import get_connection
 from validators import TipoResiduoCreate
@@ -17,16 +17,16 @@ def listar_tipos():
 def crear_tipo(tipo: TipoResiduoCreate):
     conn = get_connection()
     try:
-        cursor = conn.execute("INSERT INTO tipos_residuo (nombre_tipo) VALUES (?)", (tipo.nombre_tipo,))
+        cursor = conn.execute("INSERT INTO tipos_residuo (nombre_tipo) VALUES (%s)", (tipo.nombre_tipo,))
         conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
         return {"id": nuevo_id, "nombre_tipo": tipo.nombre_tipo}
-    except sqlite3.IntegrityError:
+    except pymysql.err.IntegrityError:
         conn.close(); raise HTTPException(status_code=422, detail="El tipo ya existe")
 
 @router_tipos.get("/{id}", summary="Obtener tipo de residuo por ID")
 def obtener_tipo(id: int):
     conn = get_connection()
-    t = conn.execute("SELECT * FROM tipos_residuo WHERE id = ?", (id,)).fetchone()
+    t = conn.execute("SELECT * FROM tipos_residuo WHERE id = %s", (id,)).fetchone()
     conn.close()
     if not t: error_404("TipoResiduo", id)
     return dict(t)
@@ -34,17 +34,17 @@ def obtener_tipo(id: int):
 @router_tipos.put("/{id}", summary="Actualizar tipo de residuo")
 def actualizar_tipo(id: int, tipo: TipoResiduoCreate):
     conn = get_connection()
-    if not conn.execute("SELECT id FROM tipos_residuo WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM tipos_residuo WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("TipoResiduo", id)
-    conn.execute("UPDATE tipos_residuo SET nombre_tipo = ? WHERE id = ?", (tipo.nombre_tipo, id))
+    conn.execute("UPDATE tipos_residuo SET nombre_tipo = %s WHERE id = %s", (tipo.nombre_tipo, id))
     conn.commit(); conn.close()
     return {"id": id, "nombre_tipo": tipo.nombre_tipo}
 
 @router_tipos.delete("/{id}", summary="Eliminar tipo de residuo")
 def eliminar_tipo(id: int):
     conn = get_connection()
-    if not conn.execute("SELECT id FROM tipos_residuo WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM tipos_residuo WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("TipoResiduo", id)
-    conn.execute("DELETE FROM tipos_residuo WHERE id = ?", (id,))
+    conn.execute("DELETE FROM tipos_residuo WHERE id = %s", (id,))
     conn.commit(); conn.close()
     return {"mensaje": f"TipoResiduo {id} eliminado exitosamente"}

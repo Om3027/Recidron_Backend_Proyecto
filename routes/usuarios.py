@@ -1,4 +1,4 @@
-import sqlite3
+import pymysql
 from fastapi import APIRouter, HTTPException
 from models import get_connection
 from validators import UsuarioCreate, UsuarioUpdate
@@ -20,16 +20,16 @@ def listar_usuarios():
 def crear_usuario(usuario: UsuarioCreate):
     """Registra un nuevo usuario en el sistema."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (usuario.rol_id,)).fetchone():
+    if not conn.execute("SELECT id FROM roles WHERE id = %s", (usuario.rol_id,)).fetchone():
         conn.close(); raise HTTPException(status_code=404, detail="El rol no existe")
     try:
         cursor = conn.execute(
-            "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (?, ?, ?, ?)",
+            "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (%s, %s, %s, %s)",
             (usuario.nombre, usuario.email, usuario.password, usuario.rol_id)
         )
         conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
         return {"id": nuevo_id, "nombre": usuario.nombre, "email": usuario.email, "rol_id": usuario.rol_id}
-    except sqlite3.IntegrityError:
+    except pymysql.err.IntegrityError:
         conn.close()
         raise HTTPException(status_code=422, detail="El email ya está registrado")
 
@@ -38,7 +38,7 @@ def obtener_usuario(id: int):
     """Retorna los datos de un usuario específico."""
     conn = get_connection()
     u = conn.execute(
-        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios WHERE id = ?", (id,)
+        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios WHERE id = %s", (id,)
     ).fetchone()
     conn.close()
     if not u: error_404("Usuario", id)
@@ -48,12 +48,12 @@ def obtener_usuario(id: int):
 def actualizar_usuario(id: int, datos: UsuarioUpdate):
     """Modifica los datos de un usuario. Solo actualiza los campos enviados."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM usuarios WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM usuarios WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Usuario", id)
     campos = {k: v for k, v in datos.dict().items() if v is not None}
     if campos:
-        set_clause = ", ".join([f"{k} = ?" for k in campos])
-        conn.execute(f"UPDATE usuarios SET {set_clause} WHERE id = ?", list(campos.values()) + [id])
+        set_clause = ", ".join([f"{k} = %s" for k in campos])
+        conn.execute(f"UPDATE usuarios SET {set_clause} WHERE id = %s", list(campos.values()) + [id])
         conn.commit()
     conn.close()
     return {"mensaje": f"Usuario {id} actualizado", "campos": list(campos.keys())}
@@ -62,8 +62,8 @@ def actualizar_usuario(id: int, datos: UsuarioUpdate):
 def eliminar_usuario(id: int):
     """Desactiva un usuario (soft delete — conserva historial de reportes)."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM usuarios WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM usuarios WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Usuario", id)
-    conn.execute("UPDATE usuarios SET activo = 0 WHERE id = ?", (id,))
+    conn.execute("UPDATE usuarios SET activo = 0 WHERE id = %s", (id,))
     conn.commit(); conn.close()
     return {"mensaje": f"Usuario {id} desactivado exitosamente"}

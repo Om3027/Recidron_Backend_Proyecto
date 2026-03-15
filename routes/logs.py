@@ -18,7 +18,7 @@ def crear_log(log: LogCreate):
     """Registra una nueva acción de auditoría."""
     conn = get_connection()
     cursor = conn.execute(
-        "INSERT INTO logs_auditoria (usuario_id, accion, tabla, descripcion) VALUES (?, ?, ?, ?)",
+        "INSERT INTO logs_auditoria (usuario_id, accion, tabla, descripcion) VALUES (%s, %s, %s, %s)",
         (log.usuario_id, log.accion, log.tabla, log.descripcion)
     )
     conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
@@ -28,7 +28,7 @@ def crear_log(log: LogCreate):
 def obtener_log(id: int):
     """Retorna un registro de auditoría específico."""
     conn = get_connection()
-    log = conn.execute("SELECT * FROM logs_auditoria WHERE id = ?", (id,)).fetchone()
+    log = conn.execute("SELECT * FROM logs_auditoria WHERE id = %s", (id,)).fetchone()
     conn.close()
     if not log: error_404("Log", id)
     return dict(log)
@@ -37,10 +37,10 @@ def obtener_log(id: int):
 def actualizar_log(id: int, log: LogCreate):
     """Modifica un registro de auditoría existente."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Log", id)
     conn.execute(
-        "UPDATE logs_auditoria SET usuario_id=?, accion=?, tabla=?, descripcion=? WHERE id=?",
+        "UPDATE logs_auditoria SET usuario_id=%s, accion=%s, tabla=%s, descripcion=%s WHERE id=%s",
         (log.usuario_id, log.accion, log.tabla, log.descripcion, id)
     )
     conn.commit(); conn.close()
@@ -50,8 +50,8 @@ def actualizar_log(id: int, log: LogCreate):
 def eliminar_log(id: int):
     """Elimina un registro de auditoría."""
     conn = get_connection()
-    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = ?", (id,)).fetchone():
+    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = %s", (id,)).fetchone():
         conn.close(); error_404("Log", id)
-    conn.execute("DELETE FROM logs_auditoria WHERE id = ?", (id,))
+    conn.execute("DELETE FROM logs_auditoria WHERE id = %s", (id,))
     conn.commit(); conn.close()
     return {"mensaje": f"Log {id} eliminado exitosamente"}

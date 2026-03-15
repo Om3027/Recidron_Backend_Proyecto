@@ -106,4 +106,4 @@ class GeoUpdate(BaseModel):
     latitud:   Optional[float] = None
     longitud:  Optional[float] = None
     altitud:   Optional[float] = None
-    precision: Optional[float] = None
+    precision_gps: Optional[float] = None
