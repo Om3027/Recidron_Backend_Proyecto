@@ -10,11 +10,18 @@
 #   - sesiones, logs_auditoria
 
 
-import sqlite3
+#import sqlite3
 import os
-
+import pymysql
+import dotenv
+dotenv.load_dotenv(dotenv_path='.env.test')
 # Ruta del archivo de base de datos — se crea automáticamente
-DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'recidron.db')
+#DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'recidron.db')
+DATABASE_NAME = os.getenv('DATABASE_NAME')
+DATABASE_HOST = os.getenv('DATABASE_HOST')
+DATABASE_USER = os.getenv('DATABASE_USER')
+DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
+DATABASE_PORT = os.getenv('DATABASE_PORT')
 
 
 def get_connection():
@@ -23,8 +30,13 @@ def get_connection():
     row_factory permite acceder a los datos como diccionario:
     fila["nombre"] en vez de fila[0]
     """
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = pymysql.connect(
+        host=DATABASE_HOST,
+        user=DATABASE_USER,
+        password=DATABASE_PASSWORD,
+        port=int(DATABASE_PORT),
+        db=DATABASE_NAME,
+    )
     return conn
 
 
@@ -34,91 +46,99 @@ def init_db():
     Este es el equivalente al script DDL que pide el profe.
     Se ejecuta automáticamente al arrancar la API.
     """
+    print("[ INFO ] Inicializando base de datos...")
     conn = get_connection()
+    print("[ INFO ] Conectado a la base de datos.")
     cursor = conn.cursor()
-
-    cursor.executescript("""
-
-        
-        -- TABLAS DE SEGURIDAD INFORMÁTICA
-        -- Roles de usuario: Administrador, Invitado
-
+    print("[ INFO ] Cursor creado.")
+    # TABLAS DE SEGURIDAD INFORMÁTICA
+    # Roles de usuario: Administrador, Invitado
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS roles (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_rol TEXT NOT NULL UNIQUE
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre_rol VARCHAR(50) NOT NULL UNIQUE
         );
+    """)
 
-        -- Usuarios del sistema con autenticación por roles
+    # Usuarios del sistema con autenticación por roles
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre     TEXT    NOT NULL,
-            email      TEXT    NOT NULL UNIQUE,
-            password   TEXT    NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre     VARCHAR(50)    NOT NULL,
+            email      VARCHAR(100)    NOT NULL UNIQUE,
+            password   VARCHAR(150)    NOT NULL,
             activo     INTEGER NOT NULL DEFAULT 1,
             rol_id     INTEGER NOT NULL,
-            creado_en  TEXT    DEFAULT CURRENT_TIMESTAMP,
+            creado_en  DATETIME    DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (rol_id) REFERENCES roles(id)
         );
+    """)
 
-        -- Sesiones activas — control de acceso por token
-    
+    # Sesiones activas — control de acceso por token
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sesiones (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id  INTEGER NOT NULL,
-            token       TEXT    NOT NULL UNIQUE,
-            creado_en   TEXT    DEFAULT CURRENT_TIMESTAMP,
-            expira_en   TEXT    NOT NULL,
+            id          INT PRIMARY KEY AUTO_INCREMENT,
+            usuario_id  INT NOT NULL,
+            token       VARCHAR(150)    NOT NULL UNIQUE,
+            creado_en   DATETIME    DEFAULT CURRENT_TIMESTAMP,
+            expira_en   DATETIME    NOT NULL,
             activa      INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
+    """)
 
-        -- Auditoría — registro de acciones importantes del sistema
-
+    # Auditoría — registro de acciones importantes del sistema
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs_auditoria (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id  INTEGER,
-            accion      TEXT NOT NULL,
-            tabla       TEXT NOT NULL,
-            descripcion TEXT,
-            fecha       TEXT DEFAULT CURRENT_TIMESTAMP,
+            id          INT PRIMARY KEY AUTO_INCREMENT,
+            usuario_id  INT,
+            accion      VARCHAR(200) NOT NULL,
+            tabla       VARCHAR(200) NOT NULL,
+            descripcion VARCHAR(1000),
+            fecha       DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
+    """)
 
-        -- TABLAS DEL PGC — Recidron App
-        -- Tipos de residuo: Aprovechable, No Aprovechable, Orgánico, Peligroso
-
+    # TABLAS DEL PGC — Recidron App
+    # Tipos de residuo: Aprovechable, No Aprovechable, Orgánico, Peligroso
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS tipos_residuo (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_tipo TEXT NOT NULL UNIQUE
+            id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+            nombre_tipo VARCHAR(50) NOT NULL UNIQUE
         );
+    """)
 
-        -- Material del residuo: Plástico, Icopor, Metal, Papel/Cartón, Vidrio
-
+    # Material del residuo: Plástico, Icopor, Metal, Papel/Cartón, Vidrio
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS materiales (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_material TEXT NOT NULL UNIQUE
+            id              INTEGER PRIMARY KEY AUTO_INCREMENT,
+            nombre_material VARCHAR(50) NOT NULL UNIQUE
         );
+    """)
 
-        -- Zonas del campus universitario
-
+    # Zonas del campus universitario
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS zonas_campus (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_zona TEXT NOT NULL UNIQUE
+            id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+            nombre_zona VARCHAR(50) NOT NULL UNIQUE
         );
+    """)
 
-        -- Tamaño estimado del residuo: Pequeño, Mediano, Grande
-
+    # Tamaño estimado del residuo: Pequeño, Mediano, Grande
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS tamanos (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_tamano TEXT NOT NULL UNIQUE
+            id            INTEGER PRIMARY KEY AUTO_INCREMENT,
+            nombre_tamano VARCHAR(50) NOT NULL UNIQUE
         );
+    """)
 
-        -- Reportes de residuos — tabla principal del sistema
-    
+    # Reportes de residuos — tabla principal del sistema
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS reportes (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            descripcion     TEXT,
-            fecha_reporte   TEXT    DEFAULT CURRENT_TIMESTAMP,
+            id              INTEGER PRIMARY KEY AUTO_INCREMENT,
+            descripcion     VARCHAR(1000),
+            fecha_reporte   DATETIME DEFAULT CURRENT_TIMESTAMP,
             usuario_id      INTEGER NOT NULL,
             tipo_residuo_id INTEGER NOT NULL,
             material_id     INTEGER NOT NULL,
@@ -130,19 +150,22 @@ def init_db():
             FOREIGN KEY (zona_id)         REFERENCES zonas_campus(id),
             FOREIGN KEY (tamano_id)       REFERENCES tamanos(id)
         );
+    """)
 
-        -- Coordenadas GPS de cada reporte
+    # Coordenadas GPS de cada reporte
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS geolocalizaciones (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitud    REAL    NOT NULL,
-            longitud   REAL    NOT NULL,
-            altitud    REAL,
-            precision  REAL,
+            id         INTEGER PRIMARY KEY AUTO_INCREMENT,
+            latitud    FLOAT    NOT NULL,
+            longitud   FLOAT    NOT NULL,
+            altitud    FLOAT,
+            precision_gps  FLOAT,
             reporte_id INTEGER NOT NULL UNIQUE,
             FOREIGN KEY (reporte_id) REFERENCES reportes(id)
         );
-
     """)
+
+    print("[ INFO ] Tablas creadas exitosamente.")
 
     # SEED — Datos iniciales (solo inserta si la tabla está vacía)
     _seed(cursor, 'roles',        'nombre_rol',      ['Administrador', 'Invitado'])
@@ -150,6 +173,8 @@ def init_db():
     _seed(cursor, 'materiales',   'nombre_material', ['Plástico', 'Icopor', 'Metal', 'Papel/Cartón', 'Vidrio'])
     _seed(cursor, 'zonas_campus', 'nombre_zona',     ['Entrada Principal', 'Bloque A', 'Bloque B', 'Canchas', 'Cafetería', 'Parqueadero'])
     _seed(cursor, 'tamanos',      'nombre_tamano',   ['Pequeño', 'Mediano', 'Grande'])
+
+    print("[ INFO ] Datos iniciales insertados exitosamente.")
 
     conn.commit()
     conn.close()
@@ -161,4 +186,4 @@ def _seed(cursor, tabla, campo, valores):
     cursor.execute(f"SELECT COUNT(*) FROM {tabla}")
     if cursor.fetchone()[0] == 0:
         for valor in valores:
-            cursor.execute(f"INSERT INTO {tabla} ({campo}) VALUES (?)", (valor,))
+            cursor.execute(f"INSERT INTO {tabla} ({campo}) VALUES (%s)", (valor,))
