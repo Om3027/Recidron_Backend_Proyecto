@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.models import get_connection
+from app import models
 from app.validators import ReporteCreate, ReporteUpdate
 from app.routes.utils import error_404
 
@@ -8,64 +8,50 @@ router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 @router_reportes.get("/", summary="Listar todos los reportes")
 def listar_reportes():
     """Consulta todos los reportes de residuos registrados."""
-    conn = get_connection()
-    reportes = conn.execute("SELECT * FROM reportes ORDER BY fecha_reporte DESC").fetchall()
-    conn.close()
-    return [dict(r) for r in reportes]
+    return models.get_all_reports()
 
 @router_reportes.post("/", status_code=201, summary="Crear un reporte")
 def crear_reporte(reporte: ReporteCreate):
     """Registra un nuevo reporte de residuo."""
-    conn = get_connection()
-    checks = [
-        ("usuarios",      reporte.usuario_id,      "Usuario"),
-        ("tipos_residuo", reporte.tipo_residuo_id,  "TipoResiduo"),
-        ("materiales",    reporte.material_id,       "Material"),
-        ("zonas_campus",  reporte.zona_id,           "Zona"),
-        ("tamanos",       reporte.tamano_id,         "Tamano"),
-    ]
-    for tabla, fk_id, nombre in checks:
-        if not conn.execute(f"SELECT id FROM {tabla} WHERE id = %s", (fk_id,)).fetchone():
-            conn.close()
-            raise HTTPException(status_code=404, detail=f"{nombre} con id {fk_id} no existe")
+    # Verificaciones de llaves foráneas usando los nuevos modelos
+    if not models.get_user_by_id(reporte.usuario_id):
+        raise HTTPException(status_code=404, detail=f"Usuario con id {reporte.usuario_id} no existe")
+    if not models.get_type_by_id(reporte.tipo_residuo_id):
+        raise HTTPException(status_code=404, detail=f"TipoResiduo con id {reporte.tipo_residuo_id} no existe")
+    if not models.get_material_by_id(reporte.material_id):
+        raise HTTPException(status_code=404, detail=f"Material con id {reporte.material_id} no existe")
+    if not models.get_zone_by_id(reporte.zona_id):
+        raise HTTPException(status_code=404, detail=f"Zona con id {reporte.zona_id} no existe")
+    if not models.get_size_by_id(reporte.tamano_id):
+        raise HTTPException(status_code=404, detail=f"Tamano con id {reporte.tamano_id} no existe")
 
-    cursor = conn.execute(
-        "INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) VALUES (%s,%s,%s,%s,%s,%s)",
-        (reporte.descripcion, reporte.usuario_id, reporte.tipo_residuo_id,
-        reporte.material_id, reporte.zona_id, reporte.tamano_id)
+    nuevo_id = models.create_report(
+        reporte.descripcion, reporte.usuario_id, reporte.tipo_residuo_id,
+        reporte.material_id, reporte.zona_id, reporte.tamano_id
     )
-    conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
     return {"id": nuevo_id, **reporte.dict()}
 
 @router_reportes.get("/{id}", summary="Obtener reporte por ID")
 def obtener_reporte(id: int):
     """Retorna un reporte específico con todos sus detalles."""
-    conn = get_connection()
-    r = conn.execute("SELECT * FROM reportes WHERE id = %s", (id,)).fetchone()
-    conn.close()
+    r = models.get_report_by_id(id)
     if not r: error_404("Reporte", id)
-    return dict(r)
+    return r
 
 @router_reportes.put("/{id}", summary="Actualizar reporte")
 def actualizar_reporte(id: int, datos: ReporteUpdate):
     """Modifica los datos de un reporte existente."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = %s", (id,)).fetchone():
-        conn.close(); error_404("Reporte", id)
+    if not models.get_report_by_id(id):
+        error_404("Reporte", id)
     campos = {k: v for k, v in datos.dict().items() if v is not None}
     if campos:
-        set_clause = ", ".join([f"{k} = %s" for k in campos])
-        conn.execute(f"UPDATE reportes SET {set_clause} WHERE id = %s", list(campos.values()) + [id])
-        conn.commit()
-    conn.close()
+        models.update_report(id, campos)
     return {"mensaje": f"Reporte {id} actualizado", "campos": list(campos.keys())}
 
 @router_reportes.delete("/{id}", summary="Eliminar reporte")
 def eliminar_reporte(id: int):
     """Elimina un reporte de residuo."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = %s", (id,)).fetchone():
-        conn.close(); error_404("Reporte", id)
-    conn.execute("DELETE FROM reportes WHERE id = %s", (id,))
-    conn.commit(); conn.close()
+    if not models.get_report_by_id(id):
+        error_404("Reporte", id)
+    models.delete_report(id)
     return {"mensaje": f"Reporte {id} eliminado exitosamente"}
