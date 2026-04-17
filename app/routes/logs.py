@@ -1,7 +1,7 @@
 from fastapi import APIRouter
-from models import get_connection
-from validators import LogCreate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import LogCreate
+from app.routes.utils import error_404
 
 router_logs = APIRouter(prefix="/logs", tags=[" Logs Auditoría"])
 

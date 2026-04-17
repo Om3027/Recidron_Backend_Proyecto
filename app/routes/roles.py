@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import RolCreate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import RolCreate
+from app.routes.utils import error_404
 
 router_roles = APIRouter(prefix="/roles", tags=[" Roles"])
 

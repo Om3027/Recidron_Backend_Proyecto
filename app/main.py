@@ -8,15 +8,15 @@
 #   pip install -r requirements.txt     
 #
 # Para correrlo:
-#   uvicorn main:app --reload --port=3000
+#   uvicorn app.main:app --reload --port=3000
 #
 # Swagger disponible en:
 #   http://localhost:3000/docs
 
 
 from fastapi import FastAPI
-from models import init_db
-from routes import (
+from app.models import init_db
+from app.routes import (
     router_roles, router_usuarios, router_sesiones, router_logs,
     router_tipos, router_materiales, router_zonas, router_tamanos,
     router_reportes, router_geos

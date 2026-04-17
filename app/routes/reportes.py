@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import ReporteCreate, ReporteUpdate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import ReporteCreate, ReporteUpdate
+from app.routes.utils import error_404
 
 router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 

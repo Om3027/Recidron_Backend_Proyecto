@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import MaterialCreate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import MaterialCreate
+from app.routes.utils import error_404
 
 router_materiales = APIRouter(prefix="/materiales", tags=[" Materiales"])
 

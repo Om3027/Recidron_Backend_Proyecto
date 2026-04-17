@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import GeoCreate, GeoUpdate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import GeoCreate, GeoUpdate
+from app.routes.utils import error_404
 
 router_geos = APIRouter(prefix="/geolocalizaciones", tags=[" Geolocalizaciones"])
 

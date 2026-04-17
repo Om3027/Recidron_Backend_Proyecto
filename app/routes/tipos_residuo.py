@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import TipoResiduoCreate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import TipoResiduoCreate
+from app.routes.utils import error_404
 
 router_tipos = APIRouter(prefix="/tipos-residuo", tags=[" Tipos de Residuo"])
 

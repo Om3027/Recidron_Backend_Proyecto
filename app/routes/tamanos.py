@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import TamanoCreate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import TamanoCreate
+from app.routes.utils import error_404
 
 router_tamanos = APIRouter(prefix="/tamanos", tags=[" Tamaños"])
 

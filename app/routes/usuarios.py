@@ -1,8 +1,8 @@
 import pymysql
 from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import UsuarioCreate, UsuarioUpdate
-from routes.utils import error_404
+from app.models import get_connection
+from app.validators import UsuarioCreate, UsuarioUpdate
+from app.routes.utils import error_404
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
 
