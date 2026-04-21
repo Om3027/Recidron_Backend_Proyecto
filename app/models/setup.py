@@ -1,5 +1,6 @@
 from app.database import engine, Base, SessionLocal
-from app.models import Role, TipoResiduo, Material, ZonaCampus, Tamano
+from .seguridad import Role
+from .pgc import TipoResiduo, Material, ZonaCampus, Tamano
 
 def init_db():
     """
