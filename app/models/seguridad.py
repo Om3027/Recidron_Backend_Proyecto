@@ -1,156 +1,207 @@
-from .db import get_connection
+from sqlalchemy.orm import Session
+from app.database import SessionLocal
+from .sqlalchemy_models import Role, User, Session as SessionModel, LogAuditoria
+
+def _get_db():
+    return SessionLocal()
 
 # --- ROLES ---
 def get_all_roles():
-    conn = get_connection()
-    roles = conn.execute("SELECT * FROM roles ORDER BY id").fetchall()
-    conn.close()
-    return [dict(r) for r in roles]
+    db = _get_db()
+    try:
+        roles = db.query(Role).order_by(Role.id).all()
+        return [r.__dict__ for r in roles]
+    finally:
+        db.close()
 
 def get_role_by_id(role_id: int):
-    conn = get_connection()
-    role = conn.execute("SELECT * FROM roles WHERE id = %s", (role_id,)).fetchone()
-    conn.close()
-    return dict(role) if role else None
+    db = _get_db()
+    try:
+        role = db.query(Role).filter(Role.id == role_id).first()
+        return role.__dict__ if role else None
+    finally:
+        db.close()
 
 def create_role(nombre_rol: str):
-    conn = get_connection()
-    cursor = conn.execute("INSERT INTO roles (nombre_rol) VALUES (%s)", (nombre_rol,))
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo_rol = Role(nombre_rol=nombre_rol)
+        db.add(nuevo_rol)
+        db.commit()
+        db.refresh(nuevo_rol)
+        return nuevo_rol.id
+    finally:
+        db.close()
 
 def update_role(role_id: int, nombre_rol: str):
-    conn = get_connection()
-    conn.execute("UPDATE roles SET nombre_rol = %s WHERE id = %s", (nombre_rol, role_id))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Role).filter(Role.id == role_id).update({"nombre_rol": nombre_rol})
+        db.commit()
+    finally:
+        db.close()
 
 def delete_role(role_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM roles WHERE id = %s", (role_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Role).filter(Role.id == role_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- USUARIOS ---
 def get_all_users():
-    conn = get_connection()
-    usuarios = conn.execute(
-        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios ORDER BY id"
-    ).fetchall()
-    conn.close()
-    return [dict(u) for u in usuarios]
+    db = _get_db()
+    try:
+        usuarios = db.query(User).order_by(User.id).all()
+        # Excluimos el password manualmente para seguridad
+        res = []
+        for u in usuarios:
+            d = u.__dict__.copy()
+            d.pop('password', None)
+            d.pop('_sa_instance_state', None)
+            res.append(d)
+        return res
+    finally:
+        db.close()
 
 def get_user_by_id(user_id: int):
-    conn = get_connection()
-    u = conn.execute(
-        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios WHERE id = %s", (user_id,)
-    ).fetchone()
-    conn.close()
-    return dict(u) if u else None
+    db = _get_db()
+    try:
+        u = db.query(User).filter(User.id == user_id).first()
+        if u:
+            d = u.__dict__.copy()
+            d.pop('password', None)
+            d.pop('_sa_instance_state', None)
+            return d
+        return None
+    finally:
+        db.close()
 
 def create_user(nombre, email, password, rol_id):
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (%s, %s, %s, %s)",
-        (nombre, email, password, rol_id)
-    )
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo_usuario = User(nombre=nombre, email=email, password=password, rol_id=rol_id)
+        db.add(nuevo_usuario)
+        db.commit()
+        db.refresh(nuevo_usuario)
+        return nuevo_usuario.id
+    finally:
+        db.close()
 
 def update_user(user_id: int, campos: dict):
-    conn = get_connection()
-    set_clause = ", ".join([f"{k} = %s" for k in campos])
-    conn.execute(f"UPDATE usuarios SET {set_clause} WHERE id = %s", list(campos.values()) + [user_id])
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(User).filter(User.id == user_id).update(campos)
+        db.commit()
+    finally:
+        db.close()
 
 def deactivate_user(user_id: int):
-    conn = get_connection()
-    conn.execute("UPDATE usuarios SET activo = 0 WHERE id = %s", (user_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(User).filter(User.id == user_id).update({"activo": 0})
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- SESIONES ---
 def get_all_sessions():
-    conn = get_connection()
-    sesiones = conn.execute("SELECT * FROM sesiones ORDER BY id").fetchall()
-    conn.close()
-    return [dict(s) for s in sesiones]
+    db = _get_db()
+    try:
+        sesiones = db.query(SessionModel).order_by(SessionModel.id).all()
+        return [s.__dict__ for s in sesiones]
+    finally:
+        db.close()
 
 def get_session_by_id(session_id: int):
-    conn = get_connection()
-    s = conn.execute("SELECT * FROM sesiones WHERE id = %s", (session_id,)).fetchone()
-    conn.close()
-    return dict(s) if s else None
+    db = _get_db()
+    try:
+        s = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+        return s.__dict__ if s else None
+    finally:
+        db.close()
 
 def create_session(usuario_id, token, expira_en):
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO sesiones (usuario_id, token, expira_en) VALUES (%s, %s, %s)",
-        (usuario_id, token, expira_en)
-    )
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nueva_sesion = SessionModel(usuario_id=usuario_id, token=token, expira_en=expira_en)
+        db.add(nueva_sesion)
+        db.commit()
+        db.refresh(nueva_sesion)
+        return nueva_sesion.id
+    finally:
+        db.close()
 
 def update_session(session_id, usuario_id, token, expira_en):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE sesiones SET usuario_id=%s, token=%s, expira_en=%s WHERE id=%s",
-        (usuario_id, token, expira_en, session_id)
-    )
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(SessionModel).filter(SessionModel.id == session_id).update({
+            "usuario_id": usuario_id,
+            "token": token,
+            "expira_en": expira_en
+        })
+        db.commit()
+    finally:
+        db.close()
 
 def delete_session(session_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM sesiones WHERE id = %s", (session_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(SessionModel).filter(SessionModel.id == session_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- LOGS ---
 def get_all_logs():
-    conn = get_connection()
-    logs = conn.execute("SELECT * FROM logs_auditoria ORDER BY fecha DESC").fetchall()
-    conn.close()
-    return [dict(l) for l in logs]
+    db = _get_db()
+    try:
+        logs = db.query(LogAuditoria).order_by(LogAuditoria.fecha.desc()).all()
+        return [l.__dict__ for l in logs]
+    finally:
+        db.close()
 
 def get_log_by_id(log_id: int):
-    conn = get_connection()
-    log = conn.execute("SELECT * FROM logs_auditoria WHERE id = %s", (log_id,)).fetchone()
-    conn.close()
-    return dict(log) if log else None
+    db = _get_db()
+    try:
+        log = db.query(LogAuditoria).filter(LogAuditoria.id == log_id).first()
+        return log.__dict__ if log else None
+    finally:
+        db.close()
 
 def create_log(usuario_id, accion, tabla, descripcion):
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO logs_auditoria (usuario_id, accion, tabla, descripcion) VALUES (%s, %s, %s, %s)",
-        (usuario_id, accion, tabla, descripcion)
-    )
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo_log = LogAuditoria(usuario_id=usuario_id, accion=accion, tabla=tabla, descripcion=descripcion)
+        db.add(nuevo_log)
+        db.commit()
+        db.refresh(nuevo_log)
+        return nuevo_log.id
+    finally:
+        db.close()
 
 def update_log(log_id, usuario_id, accion, tabla, descripcion):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE logs_auditoria SET usuario_id=%s, accion=%s, tabla=%s, descripcion=%s WHERE id=%s",
-        (usuario_id, accion, tabla, descripcion, log_id)
-    )
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(LogAuditoria).filter(LogAuditoria.id == log_id).update({
+            "usuario_id": usuario_id,
+            "accion": accion,
+            "tabla": tabla,
+            "descripcion": descripcion
+        })
+        db.commit()
+    finally:
+        db.close()
 
 def delete_log(log_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM logs_auditoria WHERE id = %s", (log_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(LogAuditoria).filter(LogAuditoria.id == log_id).delete()
+        db.commit()
+    finally:
+        db.close()
+

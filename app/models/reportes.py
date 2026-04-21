@@ -1,76 +1,108 @@
-from .db import get_connection
+from app.database import SessionLocal
+from .sqlalchemy_models import Reporte, Geolocalizacion
+
+def _get_db():
+    return SessionLocal()
 
 # --- REPORTES ---
 def get_all_reports():
-    conn = get_connection()
-    reportes = conn.execute("SELECT * FROM reportes ORDER BY fecha_reporte DESC").fetchall()
-    conn.close()
-    return [dict(r) for r in reportes]
+    db = _get_db()
+    try:
+        reportes = db.query(Reporte).order_by(Reporte.fecha_reporte.desc()).all()
+        return [r.__dict__ for r in reportes]
+    finally:
+        db.close()
 
 def get_report_by_id(report_id: int):
-    conn = get_connection()
-    r = conn.execute("SELECT * FROM reportes WHERE id = %s", (report_id,)).fetchone()
-    conn.close()
-    return dict(r) if r else None
+    db = _get_db()
+    try:
+        r = db.query(Reporte).filter(Reporte.id == report_id).first()
+        return r.__dict__ if r else None
+    finally:
+        db.close()
 
 def create_report(descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id):
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) VALUES (%s,%s,%s,%s,%s,%s)",
-        (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id)
-    )
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo = Reporte(
+            descripcion=descripcion,
+            usuario_id=usuario_id,
+            tipo_residuo_id=tipo_residuo_id,
+            material_id=material_id,
+            zona_id=zona_id,
+            tamano_id=tamano_id
+        )
+        db.add(nuevo)
+        db.commit()
+        db.refresh(nuevo)
+        return nuevo.id
+    finally:
+        db.close()
 
 def update_report(report_id: int, campos: dict):
-    conn = get_connection()
-    set_clause = ", ".join([f"{k} = %s" for k in campos])
-    conn.execute(f"UPDATE reportes SET {set_clause} WHERE id = %s", list(campos.values()) + [report_id])
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Reporte).filter(Reporte.id == report_id).update(campos)
+        db.commit()
+    finally:
+        db.close()
 
 def delete_report(report_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM reportes WHERE id = %s", (report_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Reporte).filter(Reporte.id == report_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- GEOLOCALIZACIONES ---
 def get_all_geos():
-    conn = get_connection()
-    geos = conn.execute("SELECT * FROM geolocalizaciones ORDER BY id").fetchall()
-    conn.close()
-    return [dict(g) for g in geos]
+    db = _get_db()
+    try:
+        geos = db.query(Geolocalizacion).order_by(Geolocalizacion.id).all()
+        return [g.__dict__ for g in geos]
+    finally:
+        db.close()
 
 def get_geo_by_id(geo_id: int):
-    conn = get_connection()
-    g = conn.execute("SELECT * FROM geolocalizaciones WHERE id = %s", (geo_id,)).fetchone()
-    conn.close()
-    return dict(g) if g else None
+    db = _get_db()
+    try:
+        g = db.query(Geolocalizacion).filter(Geolocalizacion.id == geo_id).first()
+        return g.__dict__ if g else None
+    finally:
+        db.close()
 
 def create_geo(latitud, longitud, altitud, precision_gps, reporte_id):
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO geolocalizaciones (latitud, longitud, altitud, precision_gps, reporte_id) VALUES (%s,%s,%s,%s,%s)",
-        (latitud, longitud, altitud, precision_gps, reporte_id)
-    )
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nueva_geo = Geolocalizacion(
+            latitud=latitud,
+            longitud=longitud,
+            altitud=altitud,
+            precision_gps=precision_gps,
+            reporte_id=reporte_id
+        )
+        db.add(nueva_geo)
+        db.commit()
+        db.refresh(nueva_geo)
+        return nueva_geo.id
+    finally:
+        db.close()
 
 def update_geo(geo_id: int, campos: dict):
-    conn = get_connection()
-    set_clause = ", ".join([f"{k} = %s" for k in campos])
-    conn.execute(f"UPDATE geolocalizaciones SET {set_clause} WHERE id = %s", list(campos.values()) + [geo_id])
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Geolocalizacion).filter(Geolocalizacion.id == geo_id).update(campos)
+        db.commit()
+    finally:
+        db.close()
 
 def delete_geo(geo_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM geolocalizaciones WHERE id = %s", (geo_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Geolocalizacion).filter(Geolocalizacion.id == geo_id).delete()
+        db.commit()
+    finally:
+        db.close()
+

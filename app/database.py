@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 # Cargar variables de entorno (usando .env.test como en el código original)
-load_dotenv(dotenv_path='.env.test')
+load_dotenv(dotenv_path='.env.dev')
 
 DATABASE_NAME = os.getenv('DATABASE_NAME')
 DATABASE_HOST = os.getenv('DATABASE_HOST')

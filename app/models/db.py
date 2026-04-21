@@ -3,7 +3,7 @@ import pymysql
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
-load_dotenv(dotenv_path='.env.test')
+load_dotenv(dotenv_path='.env.dev')
 
 DATABASE_NAME = os.getenv('DATABASE_NAME')
 DATABASE_HOST = os.getenv('DATABASE_HOST')

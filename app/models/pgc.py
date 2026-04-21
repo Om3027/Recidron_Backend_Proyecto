@@ -1,136 +1,187 @@
-from .db import get_connection
+from app.database import SessionLocal
+from .sqlalchemy_models import TipoResiduo, Material, ZonaCampus, Tamano
+
+def _get_db():
+    return SessionLocal()
 
 # --- TIPOS DE RESIDUO ---
 def get_all_types():
-    conn = get_connection()
-    tipos = conn.execute("SELECT * FROM tipos_residuo ORDER BY id").fetchall()
-    conn.close()
-    return [dict(t) for t in tipos]
+    db = _get_db()
+    try:
+        tipos = db.query(TipoResiduo).order_by(TipoResiduo.id).all()
+        return [{k: v for k, v in t.__dict__.items() if k != '_sa_instance_state'} for t in tipos]
+    finally:
+        db.close()
 
 def get_type_by_id(type_id: int):
-    conn = get_connection()
-    t = conn.execute("SELECT * FROM tipos_residuo WHERE id = %s", (type_id,)).fetchone()
-    conn.close()
-    return dict(t) if t else None
+    db = _get_db()
+    try:
+        t = db.query(TipoResiduo).filter(TipoResiduo.id == type_id).first()
+        if t:
+            return {k: v for k, v in t.__dict__.items() if k != '_sa_instance_state'}
+        return None
+    finally:
+        db.close()
 
 def create_type(nombre_tipo: str):
-    conn = get_connection()
-    cursor = conn.execute("INSERT INTO tipos_residuo (nombre_tipo) VALUES (%s)", (nombre_tipo,))
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo = TipoResiduo(nombre_tipo=nombre_tipo)
+        db.add(nuevo)
+        db.commit()
+        db.refresh(nuevo)
+        return nuevo.id
+    finally:
+        db.close()
 
 def update_type(type_id: int, nombre_tipo: str):
-    conn = get_connection()
-    conn.execute("UPDATE tipos_residuo SET nombre_tipo = %s WHERE id = %s", (nombre_tipo, type_id))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(TipoResiduo).filter(TipoResiduo.id == type_id).update({"nombre_tipo": nombre_tipo})
+        db.commit()
+    finally:
+        db.close()
 
 def delete_type(type_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM tipos_residuo WHERE id = %s", (type_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(TipoResiduo).filter(TipoResiduo.id == type_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- MATERIALES ---
 def get_all_materials():
-    conn = get_connection()
-    mats = conn.execute("SELECT * FROM materiales ORDER BY id").fetchall()
-    conn.close()
-    return [dict(m) for m in mats]
+    db = _get_db()
+    try:
+        mats = db.query(Material).order_by(Material.id).all()
+        return [m.__dict__ for m in mats]
+    finally:
+        db.close()
 
 def get_material_by_id(material_id: int):
-    conn = get_connection()
-    m = conn.execute("SELECT * FROM materiales WHERE id = %s", (material_id,)).fetchone()
-    conn.close()
-    return dict(m) if m else None
+    db = _get_db()
+    try:
+        m = db.query(Material).filter(Material.id == material_id).first()
+        return m.__dict__ if m else None
+    finally:
+        db.close()
 
 def create_material(nombre_material: str):
-    conn = get_connection()
-    cursor = conn.execute("INSERT INTO materiales (nombre_material) VALUES (%s)", (nombre_material,))
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo = Material(nombre_material=nombre_material)
+        db.add(nuevo)
+        db.commit()
+        db.refresh(nuevo)
+        return nuevo.id
+    finally:
+        db.close()
 
 def update_material(material_id: int, nombre_material: str):
-    conn = get_connection()
-    conn.execute("UPDATE materiales SET nombre_material = %s WHERE id = %s", (nombre_material, material_id))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Material).filter(Material.id == material_id).update({"nombre_material": nombre_material})
+        db.commit()
+    finally:
+        db.close()
 
 def delete_material(material_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM materiales WHERE id = %s", (material_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Material).filter(Material.id == material_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- ZONAS CAMPUS ---
 def get_all_zones():
-    conn = get_connection()
-    zonas = conn.execute("SELECT * FROM zonas_campus ORDER BY id").fetchall()
-    conn.close()
-    return [dict(z) for z in zonas]
+    db = _get_db()
+    try:
+        zonas = db.query(ZonaCampus).order_by(ZonaCampus.id).all()
+        return [z.__dict__ for z in zonas]
+    finally:
+        db.close()
 
 def get_zone_by_id(zone_id: int):
-    conn = get_connection()
-    z = conn.execute("SELECT * FROM zonas_campus WHERE id = %s", (zone_id,)).fetchone()
-    conn.close()
-    return dict(z) if z else None
+    db = _get_db()
+    try:
+        z = db.query(ZonaCampus).filter(ZonaCampus.id == zone_id).first()
+        return z.__dict__ if z else None
+    finally:
+        db.close()
 
 def create_zone(nombre_zona: str):
-    conn = get_connection()
-    cursor = conn.execute("INSERT INTO zonas_campus (nombre_zona) VALUES (%s)", (nombre_zona,))
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo = ZonaCampus(nombre_zona=nombre_zona)
+        db.add(nuevo)
+        db.commit()
+        db.refresh(nuevo)
+        return nuevo.id
+    finally:
+        db.close()
 
 def update_zone(zone_id: int, nombre_zona: str):
-    conn = get_connection()
-    conn.execute("UPDATE zonas_campus SET nombre_zona = %s WHERE id = %s", (nombre_zona, zone_id))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(ZonaCampus).filter(ZonaCampus.id == zone_id).update({"nombre_zona": nombre_zona})
+        db.commit()
+    finally:
+        db.close()
 
 def delete_zone(zone_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM zonas_campus WHERE id = %s", (zone_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(ZonaCampus).filter(ZonaCampus.id == zone_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 # --- TAMAÑOS ---
 def get_all_sizes():
-    conn = get_connection()
-    tamanos = conn.execute("SELECT * FROM tamanos ORDER BY id").fetchall()
-    conn.close()
-    return [dict(t) for t in tamanos]
+    db = _get_db()
+    try:
+        tamanos = db.query(Tamano).order_by(Tamano.id).all()
+        return [t.__dict__ for t in tamanos]
+    finally:
+        db.close()
 
 def get_size_by_id(size_id: int):
-    conn = get_connection()
-    t = conn.execute("SELECT * FROM tamanos WHERE id = %s", (size_id,)).fetchone()
-    conn.close()
-    return dict(t) if t else None
+    db = _get_db()
+    try:
+        t = db.query(Tamano).filter(Tamano.id == size_id).first()
+        return t.__dict__ if t else None
+    finally:
+        db.close()
 
 def create_size(nombre_tamano: str):
-    conn = get_connection()
-    cursor = conn.execute("INSERT INTO tamanos (nombre_tamano) VALUES (%s)", (nombre_tamano,))
-    conn.commit()
-    nuevo_id = cursor.lastrowid
-    conn.close()
-    return nuevo_id
+    db = _get_db()
+    try:
+        nuevo = Tamano(nombre_tamano=nombre_tamano)
+        db.add(nuevo)
+        db.commit()
+        db.refresh(nuevo)
+        return nuevo.id
+    finally:
+        db.close()
 
 def update_size(size_id: int, nombre_tamano: str):
-    conn = get_connection()
-    conn.execute("UPDATE tamanos SET nombre_tamano = %s WHERE id = %s", (nombre_tamano, size_id))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Tamano).filter(Tamano.id == size_id).update({"nombre_tamano": nombre_tamano})
+        db.commit()
+    finally:
+        db.close()
 
 def delete_size(size_id: int):
-    conn = get_connection()
-    conn.execute("DELETE FROM tamanos WHERE id = %s", (size_id,))
-    conn.commit()
-    conn.close()
+    db = _get_db()
+    try:
+        db.query(Tamano).filter(Tamano.id == size_id).delete()
+        db.commit()
+    finally:
+        db.close()
+
