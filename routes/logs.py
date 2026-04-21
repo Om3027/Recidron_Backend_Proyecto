@@ -1,57 +1,29 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Depends
 from models import get_connection
-from validators import LogCreate
-from routes.utils import error_404
+from routes.auth import check_permission
 
-router_logs = APIRouter(prefix="/logs", tags=[" Logs Auditoría"])
+router_logs = APIRouter(prefix="/logs", tags=[" Logs de Auditoría"])
 
-@router_logs.get("/", summary="Listar todos los logs")
-def listar_logs():
-    """Consulta todos los registros de auditoría del sistema."""
+@router_logs.get("/", summary="Listar logs de auditoría")
+def listar_logs(user_auth: dict = Depends(check_permission("audit:leer"))):
+    """Retorna todos los registros de auditoría (solo para administradores)."""
     conn = get_connection()
-    logs = conn.execute("SELECT * FROM logs_auditoria ORDER BY fecha DESC").fetchall()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM logs_auditoria ORDER BY fecha DESC")
+    logs = cursor.fetchall()
+    cursor.close()
     conn.close()
-    return [dict(l) for l in logs]
+    return logs
 
-@router_logs.post("/", status_code=201, summary="Registrar un log")
-def crear_log(log: LogCreate):
-    """Registra una nueva acción de auditoría."""
+@router_logs.get("/{id}", summary="Obtener log por ID")
+def obtener_log(id: int, user_auth: dict = Depends(check_permission("audit:leer"))):
+    """Retorna un log específico con detalles de cambios."""
     conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO logs_auditoria (usuario_id, accion, tabla, descripcion) VALUES (?, ?, ?, ?)",
-        (log.usuario_id, log.accion, log.tabla, log.descripcion)
-    )
-    conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
-    return {"id": nuevo_id, **log.dict()}
-
-@router_logs.get("/{id}", summary="Obtener un log por ID")
-def obtener_log(id: int):
-    """Retorna un registro de auditoría específico."""
-    conn = get_connection()
-    log = conn.execute("SELECT * FROM logs_auditoria WHERE id = ?", (id,)).fetchone()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM logs_auditoria WHERE id = %s", (id,))
+    log = cursor.fetchone()
+    cursor.close()
     conn.close()
-    if not log: error_404("Log", id)
-    return dict(log)
-
-@router_logs.put("/{id}", summary="Actualizar un log")
-def actualizar_log(id: int, log: LogCreate):
-    """Modifica un registro de auditoría existente."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Log", id)
-    conn.execute(
-        "UPDATE logs_auditoria SET usuario_id=?, accion=?, tabla=?, descripcion=? WHERE id=?",
-        (log.usuario_id, log.accion, log.tabla, log.descripcion, id)
-    )
-    conn.commit(); conn.close()
-    return {"id": id, **log.dict()}
-
-@router_logs.delete("/{id}", summary="Eliminar un log")
-def eliminar_log(id: int):
-    """Elimina un registro de auditoría."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM logs_auditoria WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Log", id)
-    conn.execute("DELETE FROM logs_auditoria WHERE id = ?", (id,))
-    conn.commit(); conn.close()
-    return {"mensaje": f"Log {id} eliminado exitosamente"}
+    if not log:
+        raise HTTPException(status_code=404, detail="Log no encontrado")
+    return log

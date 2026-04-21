@@ -24,7 +24,13 @@ class UsuarioCreate(BaseModel):
     nombre:   str
     email:    str
     password: str
-    rol_id:   int
+    codigo_estudiantil: Optional[str] = None
+    rol_id:   Optional[int] = None
+
+class UsuarioLogin(BaseModel):
+    """Estructura de datos para validar el inicio de sesión."""
+    email:    str
+    password: str
 
 
 class UsuarioUpdate(BaseModel):
@@ -32,6 +38,7 @@ class UsuarioUpdate(BaseModel):
     nombre:   Optional[str] = None
     email:    Optional[str] = None
     password: Optional[str] = None
+    codigo_estudiantil: Optional[str] = None
     rol_id:   Optional[int] = None
 
 

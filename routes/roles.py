@@ -1,58 +1,49 @@
-import sqlite3
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from models import get_connection
 from validators import RolCreate
-from routes.utils import error_404
+from routes.utils import error_404, registrar_log
+from routes.auth import check_permission
+import mysql.connector
 
 router_roles = APIRouter(prefix="/roles", tags=[" Roles"])
 
-@router_roles.get("/", summary="Listar todos los roles")
-def listar_roles():
-    """Consulta y retorna todos los roles del sistema."""
+@router_roles.get("/", summary="Listar roles")
+def listar_roles(user_auth: dict = Depends(check_permission("usuarios:leer"))):
+    """Lista todos los roles disponibles."""
     conn = get_connection()
-    roles = conn.execute("SELECT * FROM roles ORDER BY id").fetchall()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM roles ORDER BY id")
+    roles = cursor.fetchall()
+    cursor.close()
     conn.close()
-    return [dict(r) for r in roles]
+    return roles
 
 @router_roles.post("/", status_code=201, summary="Crear un rol")
-def crear_rol(rol: RolCreate):
-    """Registra un nuevo rol en el sistema."""
+def crear_rol(rol: RolCreate, user_auth: dict = Depends(check_permission("catalogos:gestionar"))):
+    """Crea un nuevo rol en el sistema con auditoría."""
     conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
     try:
-        cursor = conn.execute("INSERT INTO roles (nombre_rol) VALUES (?)", (rol.nombre_rol,))
-        conn.commit()
+        cursor.execute("INSERT INTO roles (nombre_rol) VALUES (%s)", (rol.nombre_rol,))
         nuevo_id = cursor.lastrowid
+        conn.commit()
+        registrar_log(user_auth['id'], "CREAR", "roles", f"Rol {nuevo_id} creado: {rol.nombre_rol}")
+        cursor.close()
         conn.close()
         return {"id": nuevo_id, "nombre_rol": rol.nombre_rol}
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=422, detail="El rol ya existe")
+    except mysql.connector.Error as err:
+        cursor.close(); conn.close()
+        if err.errno == 1062:
+            raise HTTPException(status_code=422, detail="El rol ya existe")
+        raise HTTPException(status_code=500, detail="Error al crear rol")
 
-@router_roles.get("/{id}", summary="Obtener un rol por ID")
-def obtener_rol(id: int):
-    """Retorna un rol específico. Error 404 si no existe."""
+@router_roles.get("/{id}", summary="Obtener rol por ID")
+def obtener_rol(id: int, user_auth: dict = Depends(check_permission("usuarios:leer"))):
     conn = get_connection()
-    rol = conn.execute("SELECT * FROM roles WHERE id = ?", (id,)).fetchone()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM roles WHERE id = %s", (id,))
+    r = cursor.fetchone()
+    cursor.close()
     conn.close()
-    if not rol: error_404("Rol", id)
-    return dict(rol)
-
-@router_roles.put("/{id}", summary="Actualizar un rol")
-def actualizar_rol(id: int, rol: RolCreate):
-    """Modifica el nombre de un rol existente."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Rol", id)
-    conn.execute("UPDATE roles SET nombre_rol = ? WHERE id = ?", (rol.nombre_rol, id))
-    conn.commit(); conn.close()
-    return {"id": id, "nombre_rol": rol.nombre_rol}
-
-@router_roles.delete("/{id}", summary="Eliminar un rol")
-def eliminar_rol(id: int):
-    """Elimina un rol del sistema."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Rol", id)
-    conn.execute("DELETE FROM roles WHERE id = ?", (id,))
-    conn.commit(); conn.close()
-    return {"mensaje": f"Rol {id} eliminado exitosamente"}
+    if not r: error_404("Rol", id)
+    return r
