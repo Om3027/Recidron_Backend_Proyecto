@@ -6,6 +6,7 @@ import mysql.connector
 import uuid
 from datetime import datetime, timedelta
 from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin
+from utils.security import get_password_hash, verify_password
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
 
@@ -56,9 +57,10 @@ def crear_usuario(usuario: UsuarioCreate, user_auth: dict = Depends(get_optional
         raise HTTPException(status_code=404, detail="El rol especificado no existe")
         
     try:
+        hashed_password = get_password_hash(usuario.password)
         cursor.execute(
             "INSERT INTO usuarios (nombre, email, password, codigo_estudiantil, rol_id) VALUES (%s, %s, %s, %s, %s)",
-            (usuario.nombre, usuario.email, usuario.password, usuario.codigo_estudiantil, final_rol_id)
+            (usuario.nombre, usuario.email, hashed_password, usuario.codigo_estudiantil, final_rol_id)
         )
         nuevo_id = cursor.lastrowid
         conn.commit()
@@ -121,6 +123,11 @@ def actualizar_usuario(id: int, datos: UsuarioUpdate, user_auth: dict = Depends(
         cursor.close(); conn.close(); error_404("Usuario", id)
         
     campos = {k: v for k, v in datos.dict().items() if v is not None}
+    
+    # Hash password if provided
+    if "password" in campos:
+        campos["password"] = get_password_hash(campos["password"])
+
     if campos:
         set_clause = ", ".join([f"{k} = %s" for k in campos])
         cursor.execute(f"UPDATE usuarios SET {set_clause} WHERE id = %s", list(campos.values()) + [id])
@@ -172,7 +179,7 @@ def iniciar_sesion(datos: UsuarioLogin):
     cursor.execute(query, (datos.email,))
     user = cursor.fetchone()
     
-    if not user or user['password'] != datos.password:
+    if not user or not verify_password(datos.password, user['password']):
         cursor.close(); conn.close()
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
     

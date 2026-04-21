@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
+from utils.security import get_password_hash
 
 # Configuración de la base de datos (Aiven Cloud)
 DB_CONFIG = {
@@ -316,9 +317,10 @@ def _seed_admin_maestro(cursor):
     cursor.execute("SELECT id FROM usuarios WHERE email = %s", (admin_email,))
     if not cursor.fetchone():
         # Asignar rol_id = 1 (admin)
+        hashed_pass = get_password_hash(admin_pass)
         cursor.execute(
             "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (%s, %s, %s, %s)",
-            (admin_name, admin_email, admin_pass, 1)
+            (admin_name, admin_email, hashed_pass, 1)
         )
         print(f"[ SEED ] Administrador Maestro creado: {admin_email}")
 
