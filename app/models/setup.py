@@ -1,5 +1,5 @@
 from app.database import engine, Base, SessionLocal
-from .sqlalchemy_models import Role, TipoResiduo, Material, ZonaCampus, Tamano
+from app.models import Role, TipoResiduo, Material, ZonaCampus, Tamano
 
 def init_db():
     """

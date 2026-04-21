@@ -1,6 +1,6 @@
 from app.database import SessionLocal
-from .base_services import BaseService
-from app.models.sqlalchemy_models import TipoResiduo, Material, ZonaCampus, Tamano
+from .base_service import BaseService
+from app.models.pgc import TipoResiduo, Material, ZonaCampus, Tamano
 
 class TipoResiduoService(BaseService):
     def __init__(self):

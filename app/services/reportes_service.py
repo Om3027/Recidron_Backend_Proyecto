@@ -1,6 +1,6 @@
 from app.database import SessionLocal
-from .base_services import BaseService
-from app.models.sqlalchemy_models import Reporte, Geolocalizacion
+from .base_service import BaseService
+from app.models.reportes import Reporte, Geolocalizacion
 
 class ReporteService(BaseService):
     def __init__(self):

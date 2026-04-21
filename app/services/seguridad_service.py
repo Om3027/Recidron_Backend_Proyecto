@@ -1,6 +1,6 @@
 from app.database import SessionLocal
-from .base_services import BaseService
-from app.models.sqlalchemy_models import Role, User, Session as SessionModel, LogAuditoria
+from .base_service import BaseService
+from app.models.seguridad import Role, User, Session as SessionModel, LogAuditoria
 
 class RoleService(BaseService):
     def __init__(self):
