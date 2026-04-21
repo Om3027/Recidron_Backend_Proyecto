@@ -198,6 +198,7 @@ def iniciar_sesion(datos: UsuarioLogin):
     conn.close()
     
     return {
+        "id": user['id'],
         "token": token,
         "email": user['email'],
         "nombre": user['nombre'],

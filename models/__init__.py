@@ -237,10 +237,10 @@ def init_db():
     # --- DATOS INICIALES (Seed) ---
     _seed_roles(cursor)
     _seed_permisos(cursor)
-    _seed_list(cursor, 'tipos_residuo','nombre_tipo',     ['Aprovechable', 'No Aprovechable', 'Orgánico', 'Peligroso'])
-    _seed_list(cursor, 'materiales',   'nombre_material', ['Plástico', 'Icopor', 'Metal', 'Papel/Cartón', 'Vidrio'])
-    _seed_list(cursor, 'zonas_campus', 'nombre_zona',     ['Entrada Principal', 'Bloque A', 'Bloque B', 'Canchas', 'Cafetería', 'Parqueadero'])
-    _seed_list(cursor, 'tamanos',      'nombre_tamano',   ['Pequeño', 'Mediano', 'Grande'])
+    _seed_list(cursor, 'tipos_residuo', 'nombre_tipo',     ['Aprovechable', 'Orgánico', 'No Aprovechable', 'Peligroso'])
+    _seed_list(cursor, 'materiales',   'nombre_material', ['Plástico', 'Vidrio', 'Cartón/Papel', 'Metal', 'Residuos Orgánicos', 'Restos de Comida'])
+    _seed_list(cursor, 'zonas_campus', 'nombre_zona',     ['Biblioteca', 'Edificio A', 'Edificio B', 'Cafetería', 'Zona Deportiva', 'Parqueadero'])
+    _seed_list(cursor, 'tamanos',      'nombre_tamano',   ['Leve', 'Mediano (2-5kg)', 'Crítico'])
     _seed_admin_maestro(cursor)
     _sync_permisos_roles(cursor)
 

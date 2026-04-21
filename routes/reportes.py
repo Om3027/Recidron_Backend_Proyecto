@@ -8,10 +8,24 @@ router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
 @router_reportes.get("/", summary="Listar todos los reportes")
 def listar_reportes(user: dict = Depends(check_permission("reportes:leer"))):
-    """Consulta todos los reportes de residuos registrados (solo activos)."""
+    """Consulta todos los reportes con nombres de catálogos (solo activos)."""
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM reportes WHERE es_activo = 1 ORDER BY fecha_reporte DESC")
+    query = """
+        SELECT r.*, 
+               tr.nombre_tipo as tipo_nombre, 
+               m.nombre_material as material_nombre,
+               zc.nombre_zona as zona_nombre,
+               t.nombre_tamano as tamano_nombre
+        FROM reportes r
+        JOIN tipos_residuo tr ON r.tipo_residuo_id = tr.id
+        JOIN materiales m ON r.material_id = m.id
+        JOIN zonas_campus zc ON r.zona_id = zc.id
+        JOIN tamanos t ON r.tamano_id = t.id
+        WHERE r.es_activo = 1 
+        ORDER BY r.fecha_reporte DESC
+    """
+    cursor.execute(query)
     reportes = cursor.fetchall()
     cursor.close()
     conn.close()
