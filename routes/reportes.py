@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import get_connection
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from models import get_db, Reporte, User, TipoResiduo, Material, ZonaCampus, Tamano
 from validators import ReporteCreate, ReporteUpdate
 from routes.utils import error_404, registrar_log
 from routes.auth import check_permission
@@ -7,162 +9,139 @@ from routes.auth import check_permission
 router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
 @router_reportes.get("/", summary="Listar todos los reportes")
-def listar_reportes(user: dict = Depends(check_permission("reportes:leer"))):
+def listar_reportes(user: dict = Depends(check_permission("reportes:leer")), db: Session = Depends(get_db)):
     """Consulta todos los reportes con nombres de catálogos (solo activos)."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    query = """
-        SELECT r.*, 
-               tr.nombre_tipo as tipo_nombre, 
-               m.nombre_material as material_nombre,
-               zc.nombre_zona as zona_nombre,
-               t.nombre_tamano as tamano_nombre
-        FROM reportes r
-        JOIN tipos_residuo tr ON r.tipo_residuo_id = tr.id
-        JOIN materiales m ON r.material_id = m.id
-        JOIN zonas_campus zc ON r.zona_id = zc.id
-        JOIN tamanos t ON r.tamano_id = t.id
-        WHERE r.es_activo = 1 
-        ORDER BY r.fecha_reporte DESC
-    """
-    cursor.execute(query)
-    reportes = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return reportes
+    reportes = db.query(Reporte).filter(Reporte.es_activo == True).order_by(Reporte.fecha_reporte.desc()).all()
+    
+    resultado = []
+    for r in reportes:
+        resultado.append({
+            "id": r.id,
+            "descripcion": r.descripcion,
+            "fecha_reporte": r.fecha_reporte,
+            "es_activo": r.es_activo,
+            "usuario_id": r.usuario_id,
+            "tipo_residuo_id": r.tipo_residuo_id,
+            "material_id": r.material_id,
+            "zona_id": r.zona_id,
+            "tamano_id": r.tamano_id,
+            "tipo_nombre": r.tipo_residuo.nombre_tipo if r.tipo_residuo else None,
+            "material_nombre": r.material.nombre_material if r.material else None,
+            "zona_nombre": r.zona.nombre_zona if r.zona else None,
+            "tamano_nombre": r.tamano.nombre_tamano if r.tamano else None
+        })
+    return resultado
 
 @router_reportes.post("/", status_code=201, summary="Crear un reporte")
-def crear_reporte(reporte: ReporteCreate, user: dict = Depends(check_permission("reportes:crear"))):
+def crear_reporte(reporte: ReporteCreate, user: dict = Depends(check_permission("reportes:crear")), db: Session = Depends(get_db)):
     """Registra un nuevo reporte de residuo y lo audita."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
     
     # Validaciones de llaves foráneas
-    checks = [
-        ("usuarios",      reporte.usuario_id,      "Usuario"),
-        ("tipos_residuo", reporte.tipo_residuo_id,  "TipoResiduo"),
-        ("materiales",    reporte.material_id,       "Material"),
-        ("zonas_campus",  reporte.zona_id,           "Zona"),
-        ("tamanos",       reporte.tamano_id,         "Tamano"),
-    ]
-    for tabla, fk_id, nombre in checks:
-        cursor.execute(f"SELECT id FROM {tabla} WHERE id = %s AND es_activo = 1", (fk_id,))
-        if not cursor.fetchone():
-            cursor.close(); conn.close()
-            raise HTTPException(status_code=404, detail=f"{nombre} con id {fk_id} no existe o está inactivo")
+    if not db.query(User).filter(User.id == reporte.usuario_id, User.es_activo == True).first():
+        raise HTTPException(status_code=404, detail=f"Usuario con id {reporte.usuario_id} no existe o está inactivo")
+    if not db.query(TipoResiduo).filter(TipoResiduo.id == reporte.tipo_residuo_id, TipoResiduo.es_activo == True).first():
+        raise HTTPException(status_code=404, detail=f"TipoResiduo con id {reporte.tipo_residuo_id} no existe o está inactivo")
+    if not db.query(Material).filter(Material.id == reporte.material_id, Material.es_activo == True).first():
+        raise HTTPException(status_code=404, detail=f"Material con id {reporte.material_id} no existe o está inactivo")
+    if not db.query(ZonaCampus).filter(ZonaCampus.id == reporte.zona_id, ZonaCampus.es_activo == True).first():
+        raise HTTPException(status_code=404, detail=f"Zona con id {reporte.zona_id} no existe o está inactiva")
+    if not db.query(Tamano).filter(Tamano.id == reporte.tamano_id, Tamano.es_activo == True).first():
+        raise HTTPException(status_code=404, detail=f"Tamano con id {reporte.tamano_id} no existe o está inactivo")
 
     # Inserción
-    query = """
-        INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) 
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """
-    params = (reporte.descripcion, reporte.usuario_id, reporte.tipo_residuo_id,
-              reporte.material_id, reporte.zona_id, reporte.tamano_id)
-    cursor.execute(query, params)
-    nuevo_id = cursor.lastrowid
-    conn.commit()
+    nuevo_reporte = Reporte(
+        descripcion=reporte.descripcion,
+        usuario_id=reporte.usuario_id,
+        tipo_residuo_id=reporte.tipo_residuo_id,
+        material_id=reporte.material_id,
+        zona_id=reporte.zona_id,
+        tamano_id=reporte.tamano_id
+    )
+    db.add(nuevo_reporte)
+    db.commit()
+    db.refresh(nuevo_reporte)
     
     # Auditoría
-    registrar_log(user['id'], "CREAR", "reportes", f"Reporte {nuevo_id} creado", v_nuevo=reporte.dict())
+    registrar_log(user['id'], "CREAR", "reportes", f"Reporte {nuevo_reporte.id} creado", v_nuevo=reporte.dict(), db=db)
     
-    cursor.close()
-    conn.close()
-    return {"id": nuevo_id, **reporte.dict()}
+    return {"id": nuevo_reporte.id, **reporte.dict()}
 
 @router_reportes.get("/{id}", summary="Obtener reporte por ID")
-def obtener_reporte(id: int, user: dict = Depends(check_permission("reportes:leer"))):
+def obtener_reporte(id: int, user: dict = Depends(check_permission("reportes:leer")), db: Session = Depends(get_db)):
     """Retorna un reporte específico que esté activo."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM reportes WHERE id = %s AND es_activo = 1", (id,))
-    r = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    r = db.query(Reporte).filter(Reporte.id == id, Reporte.es_activo == True).first()
     if not r: error_404("Reporte", id)
     return r
 
 @router_reportes.put("/{id}", summary="Actualizar reporte")
-def actualizar_reporte(id: int, datos: ReporteUpdate, user: dict = Depends(check_permission("reportes:editar"))):
+def actualizar_reporte(id: int, datos: ReporteUpdate, user: dict = Depends(check_permission("reportes:editar")), db: Session = Depends(get_db)):
     """Modifica los datos de un reporte activo y registra el cambio anterior/nuevo."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    r = db.query(Reporte).filter(Reporte.id == id, Reporte.es_activo == True).first()
+    if not r:
+        error_404("Reporte", id)
     
-    # Obtener estado anterior para el log
-    cursor.execute("SELECT * FROM reportes WHERE id = %s AND es_activo = 1", (id,))
-    v_anterior = cursor.fetchone()
-    if not v_anterior:
-        cursor.close(); conn.close(); error_404("Reporte", id)
+    v_anterior = {
+        "descripcion": r.descripcion,
+        "usuario_id": r.usuario_id,
+        "tipo_residuo_id": r.tipo_residuo_id,
+        "material_id": r.material_id,
+        "zona_id": r.zona_id,
+        "tamano_id": r.tamano_id
+    }
     
     campos = {k: v for k, v in datos.dict().items() if v is not None}
     if campos:
-        set_clause = ", ".join([f"{k} = %s" for k in campos])
-        cursor.execute(f"UPDATE reportes SET {set_clause} WHERE id = %s", list(campos.values()) + [id])
-        conn.commit()
+        for k, v in campos.items():
+            setattr(r, k, v)
+        db.commit()
         
         # Auditoría con trazabilidad de valores
         registrar_log(user['id'], "ACTUALIZAR", "reportes", f"Reporte {id} modificado", 
-                      v_anterior=v_anterior, v_nuevo=campos)
+                      v_anterior=v_anterior, v_nuevo=campos, db=db)
     
-    cursor.close()
-    conn.close()
     return {"mensaje": f"Reporte {id} actualizado", "campos": list(campos.keys())}
 
 @router_reportes.delete("/{id}", summary="Eliminar reporte (Soft-Delete)")
-def eliminar_reporte(id: int, user: dict = Depends(check_permission("reportes:eliminar"))):
+def eliminar_reporte(id: int, user: dict = Depends(check_permission("reportes:eliminar")), db: Session = Depends(get_db)):
     """Realiza un borrado lógico (es_activo = 0) del reporte."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("SELECT id FROM reportes WHERE id = %s AND es_activo = 1", (id,))
-    if not cursor.fetchone():
-        cursor.close(); conn.close(); error_404("Reporte", id)
+    r = db.query(Reporte).filter(Reporte.id == id, Reporte.es_activo == True).first()
+    if not r:
+        error_404("Reporte", id)
         
-    cursor.execute("UPDATE reportes SET es_activo = 0 WHERE id = %s", (id,))
-    conn.commit()
+    r.es_activo = False
+    db.commit()
     
-    registrar_log(user['id'], "ELIMINAR", "reportes", f"Reporte {id} marcado como inactivo (soft-delete)")
+    registrar_log(user['id'], "ELIMINAR", "reportes", f"Reporte {id} marcado como inactivo (soft-delete)", db=db)
     
-    cursor.close()
-    conn.close()
     return {"mensaje": f"Reporte {id} eliminado exitosamente (lógico)"}
 
 @router_reportes.get("/stats/my", summary="Estadísticas de mis reportes")
-def obtener_mis_estadisticas(user: dict = Depends(check_permission("reportes:leer"))):
+def obtener_mis_estadisticas(user: dict = Depends(check_permission("reportes:leer")), db: Session = Depends(get_db)):
     """Retorna un resumen de la actividad del usuario autenticado."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
     try:
         # 1. Total de reportes propios
-        cursor.execute("SELECT COUNT(*) as total FROM reportes WHERE usuario_id = %s AND es_activo = 1", (user['id'],))
-        total = cursor.fetchone()['total']
+        total = db.query(Reporte).filter(Reporte.usuario_id == user['id'], Reporte.es_activo == True).count()
         
         # 2. Material que más acostumbra reportar
-        cursor.execute("""
-            SELECT m.nombre_material as material, COUNT(r.id) as cantidad
-            FROM reportes r
-            JOIN materiales m ON r.material_id = m.id
-            WHERE r.usuario_id = %s AND r.es_activo = 1
-            GROUP BY m.id, m.nombre_material
-            ORDER BY cantidad DESC LIMIT 1
-        """, (user['id'],))
-        top_material = cursor.fetchone()
+        top_material = db.query(Material.nombre_material.label('material'), func.count(Reporte.id).label('cantidad')) \
+            .join(Reporte, Material.id == Reporte.material_id) \
+            .filter(Reporte.usuario_id == user['id'], Reporte.es_activo == True) \
+            .group_by(Material.id, Material.nombre_material) \
+            .order_by(func.count(Reporte.id).desc()) \
+            .first()
         
         # 3. Zonas en las que ha participado
-        cursor.execute("SELECT COUNT(DISTINCT zona_id) as zonas FROM reportes WHERE usuario_id = %s AND es_activo = 1", (user['id'],))
-        zonas = cursor.fetchone()['zonas']
+        zonas = db.query(func.count(func.distinct(Reporte.zona_id))) \
+            .filter(Reporte.usuario_id == user['id'], Reporte.es_activo == True).scalar()
         
         return {
             "stats": [
                 {"title": "Mis Reportes", "value": str(total), "subtitle": "Total acumulado"},
-                {"title": "Zonas Limpias", "value": str(zonas), "subtitle": "Diferentes lugares"},
-                {"title": "Material Top", "value": top_material['material'] if top_material else "Ninguno", "subtitle": "Más frecuente"},
+                {"title": "Zonas Limpias", "value": str(zonas or 0), "subtitle": "Diferentes lugares"},
+                {"title": "Material Top", "value": top_material.material if top_material else "Ninguno", "subtitle": "Más frecuente"},
                 {"title": "Mi Rango", "value": "Colaborador", "subtitle": "Usuario activo"}
             ]
         }
     except Exception as e:
         print(f"Error en stats/my: {e}")
         return {"stats": []}
-    finally:
-        cursor.close()
-        conn.close()
