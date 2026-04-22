@@ -1,7 +1,9 @@
 from fastapi import Header, HTTPException, Depends
-from models import get_connection
+from sqlalchemy.orm import Session
+from models import get_db, Session as SesionModel, User, Role
+from datetime import datetime
 
-def get_current_user(authorization: str = Header(None)):
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
     """
     Extrae el token del header Authorization y valida la sesión.
     Retorna los datos del usuario si es válida.
@@ -12,30 +14,28 @@ def get_current_user(authorization: str = Header(None)):
     # El token suele venir como 'Bearer <token>'
     token = authorization.replace("Bearer ", "").strip()
     
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
     # Buscar sesión activa que no haya expirado
-    query = """
-        SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre_rol 
-        FROM sesiones s
-        JOIN usuarios u ON s.usuario_id = u.id
-        JOIN roles r ON u.rol_id = r.id
-        WHERE s.token = %s AND s.activa = 1 AND s.expira_en > NOW()
-        AND u.es_activo = 1
-    """
-    cursor.execute(query, (token,))
-    user = cursor.fetchone()
+    sesion = db.query(SesionModel).join(User).join(Role).filter(
+        SesionModel.token == token,
+        SesionModel.activa == True,
+        SesionModel.expira_en > datetime.now(),
+        User.es_activo == True
+    ).first()
     
-    cursor.close()
-    conn.close()
-    
-    if not user:
+    if not sesion or not sesion.usuario:
         raise HTTPException(status_code=401, detail="Sesión inválida o expirada")
+    
+    user = {
+        'id': sesion.usuario.id,
+        'nombre': sesion.usuario.nombre,
+        'email': sesion.usuario.email,
+        'rol_id': sesion.usuario.rol_id,
+        'nombre_rol': sesion.usuario.rol.nombre_rol
+    }
     
     return user
 
-def get_optional_user(authorization: str = Header(None)):
+def get_optional_user(authorization: str = Header(None), db: Session = Depends(get_db)):
     """
     Intenta obtener el usuario si hay un token, pero no lanza error si no lo hay.
     Útil para endpoints que son públicos pero tienen funciones extra si eres admin.
@@ -43,7 +43,7 @@ def get_optional_user(authorization: str = Header(None)):
     if not authorization:
         return None
     try:
-        return get_current_user(authorization)
+        return get_current_user(authorization, db)
     except HTTPException:
         return None
 
@@ -51,21 +51,13 @@ def check_permission(permission_required: str):
     """
     Dependencia que verifica si el usuario actual tiene un permiso específico.
     """
-    def permission_checker(user: dict = Depends(get_current_user)):
-        conn = get_connection()
-        cursor = conn.cursor()
+    def permission_checker(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+        from models import Permission
         
-        query = """
-            SELECT COUNT(*) 
-            FROM rol_permisos rp
-            JOIN permisos p ON rp.permiso_id = p.id
-            WHERE rp.rol_id = %s AND p.nombre_permiso = %s
-        """
-        cursor.execute(query, (user['rol_id'], permission_required))
-        has_permission = cursor.fetchone()[0] > 0
-        
-        cursor.close()
-        conn.close()
+        has_permission = db.query(Role).join(Role.permisos).filter(
+            Role.id == user['rol_id'],
+            Permission.nombre_permiso == permission_required
+        ).first()
         
         if not has_permission:
             raise HTTPException(

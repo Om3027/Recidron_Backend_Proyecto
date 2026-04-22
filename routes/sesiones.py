@@ -1,82 +1,65 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import get_connection
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from models import get_db, Session as SesionModel, User
 from validators import SesionCreate
 from routes.utils import error_404, registrar_log
 from routes.auth import check_permission
-import mysql.connector
 
 router_sesiones = APIRouter(prefix="/sesiones", tags=[" Sesiones"])
 
 @router_sesiones.get("/", summary="Listar todas las sesiones")
-def listar_sesiones(user_auth: dict = Depends(check_permission("audit:leer"))):
+def listar_sesiones(user_auth: dict = Depends(check_permission("audit:leer")), db: Session = Depends(get_db)):
     """Consulta todas las sesiones registradas (solo para auditores/admin)."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM sesiones ORDER BY id")
-    sesiones = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    sesiones = db.query(SesionModel).order_by(SesionModel.id).all()
     return sesiones
 
 @router_sesiones.post("/", status_code=201, summary="Registrar una sesión")
-def crear_sesion(sesion: SesionCreate):
+def crear_sesion(sesion: SesionCreate, db: Session = Depends(get_db)):
     """Registra una nueva sesión activa para un usuario (Login)."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("SELECT id FROM usuarios WHERE id = %s AND es_activo = 1", (sesion.usuario_id,))
-    if not cursor.fetchone():
-        cursor.close(); conn.close()
+    usuario = db.query(User).filter(User.id == sesion.usuario_id, User.es_activo == True).first()
+    if not usuario:
         raise HTTPException(status_code=404, detail="El usuario no existe o está inactivo")
         
     try:
-        query = "INSERT INTO sesiones (usuario_id, token, expira_en) VALUES (%s, %s, %s)"
-        cursor.execute(query, (sesion.usuario_id, sesion.token, sesion.expira_en))
-        nuevo_id = cursor.lastrowid
-        conn.commit()
+        nueva_sesion = SesionModel(
+            usuario_id=sesion.usuario_id,
+            token=sesion.token,
+            expira_en=sesion.expira_en
+        )
+        db.add(nueva_sesion)
+        db.commit()
+        db.refresh(nueva_sesion)
         
         # Auditoría de inicio de sesión
-        registrar_log(sesion.usuario_id, "LOGIN", "sesiones", f"Usuario inicio sesión (id_sesion: {nuevo_id})")
+        registrar_log(sesion.usuario_id, "LOGIN", "sesiones", f"Usuario inicio sesión (id_sesion: {nueva_sesion.id})", db=db)
         
-        cursor.close()
-        conn.close()
-        return {"id": nuevo_id, **sesion.dict()}
-    except mysql.connector.Error as err:
-        cursor.close()
-        conn.close()
-        if err.errno == 1062:
-            raise HTTPException(status_code=422, detail="El token ya existe")
+        return {"id": nueva_sesion.id, **sesion.dict()}
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=422, detail="El token ya existe")
+    except Exception:
+        db.rollback()
         raise HTTPException(status_code=500, detail="Error al crear sesión")
 
 @router_sesiones.get("/{id}", summary="Obtener una sesión por ID")
-def obtener_sesion(id: int, user_auth: dict = Depends(check_permission("audit:leer"))):
+def obtener_sesion(id: int, user_auth: dict = Depends(check_permission("audit:leer")), db: Session = Depends(get_db)):
     """Retorna una sesión específica."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM sesiones WHERE id = %s", (id,))
-    s = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    s = db.query(SesionModel).filter(SesionModel.id == id).first()
     if not s: error_404("Sesion", id)
     return s
 
 @router_sesiones.delete("/{id}", summary="Cerrar una sesión")
-def eliminar_sesion(id: int):
+def eliminar_sesion(id: int, db: Session = Depends(get_db)):
     """Cierra (desactiva) una sesión del sistema (Logout)."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("SELECT id, usuario_id FROM sesiones WHERE id = %s AND activa = 1", (id,))
-    sesion = cursor.fetchone()
+    sesion = db.query(SesionModel).filter(SesionModel.id == id, SesionModel.activa == True).first()
     if not sesion:
-        cursor.close(); conn.close(); error_404("Sesion", id)
+        error_404("Sesion", id)
         
     # Usamos soft-delete para sesiones también: marcada como inactiva
-    cursor.execute("UPDATE sesiones SET activa = 0 WHERE id = %s", (id,))
-    conn.commit()
+    sesion.activa = False
+    db.commit()
     
-    registrar_log(sesion['usuario_id'], "LOGOUT", "sesiones", f"Sesión {id} cerrada")
+    registrar_log(sesion.usuario_id, "LOGOUT", "sesiones", f"Sesión {id} cerrada", db=db)
     
-    cursor.close()
-    conn.close()
     return {"mensaje": f"Sesion {id} cerrada exitosamente"}

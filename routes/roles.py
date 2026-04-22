@@ -1,49 +1,40 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import get_connection
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from models import get_db, Role
 from validators import RolCreate
 from routes.utils import error_404, registrar_log
 from routes.auth import check_permission
-import mysql.connector
 
 router_roles = APIRouter(prefix="/roles", tags=[" Roles"])
 
 @router_roles.get("/", summary="Listar roles")
-def listar_roles(user_auth: dict = Depends(check_permission("usuarios:leer"))):
+def listar_roles(user_auth: dict = Depends(check_permission("usuarios:leer")), db: Session = Depends(get_db)):
     """Lista todos los roles disponibles."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM roles ORDER BY id")
-    roles = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    roles = db.query(Role).order_by(Role.id).all()
     return roles
 
 @router_roles.post("/", status_code=201, summary="Crear un rol")
-def crear_rol(rol: RolCreate, user_auth: dict = Depends(check_permission("catalogos:gestionar"))):
+def crear_rol(rol: RolCreate, user_auth: dict = Depends(check_permission("catalogos:gestionar")), db: Session = Depends(get_db)):
     """Crea un nuevo rol en el sistema con auditoría."""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("INSERT INTO roles (nombre_rol) VALUES (%s)", (rol.nombre_rol,))
-        nuevo_id = cursor.lastrowid
-        conn.commit()
-        registrar_log(user_auth['id'], "CREAR", "roles", f"Rol {nuevo_id} creado: {rol.nombre_rol}")
-        cursor.close()
-        conn.close()
-        return {"id": nuevo_id, "nombre_rol": rol.nombre_rol}
-    except mysql.connector.Error as err:
-        cursor.close(); conn.close()
-        if err.errno == 1062:
-            raise HTTPException(status_code=422, detail="El rol ya existe")
+        nuevo_rol = Role(nombre_rol=rol.nombre_rol)
+        db.add(nuevo_rol)
+        db.commit()
+        db.refresh(nuevo_rol)
+        
+        registrar_log(user_auth['id'], "CREAR", "roles", f"Rol {nuevo_rol.id} creado: {nuevo_rol.nombre_rol}", db=db)
+        
+        return {"id": nuevo_rol.id, "nombre_rol": nuevo_rol.nombre_rol}
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=422, detail="El rol ya existe")
+    except Exception:
+        db.rollback()
         raise HTTPException(status_code=500, detail="Error al crear rol")
 
 @router_roles.get("/{id}", summary="Obtener rol por ID")
-def obtener_rol(id: int, user_auth: dict = Depends(check_permission("usuarios:leer"))):
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM roles WHERE id = %s", (id,))
-    r = cursor.fetchone()
-    cursor.close()
-    conn.close()
+def obtener_rol(id: int, user_auth: dict = Depends(check_permission("usuarios:leer")), db: Session = Depends(get_db)):
+    r = db.query(Role).filter(Role.id == id).first()
     if not r: error_404("Rol", id)
     return r
