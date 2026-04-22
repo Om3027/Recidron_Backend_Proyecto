@@ -3,6 +3,7 @@ from .schemas import create_tables
 from .migrations import run_migrations
 from .seeders import run_seeders
 from .security import Role, Permission, User, Session, AuditLog
+from .project import TipoResiduo, Material, ZonaCampus, Tamano, Reporte, Geolocalizacion
 
 def init_db():
     """
@@ -29,5 +30,6 @@ def init_db():
 __all__ = [
     "get_connection", "init_db", "DB_CONFIG", 
     "engine", "SessionLocal", "Base", "get_db",
-    "Role", "Permission", "User", "Session", "AuditLog"
+    "Role", "Permission", "User", "Session", "AuditLog",
+    "TipoResiduo", "Material", "ZonaCampus", "Tamano", "Reporte", "Geolocalizacion"
 ]

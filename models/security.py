@@ -48,6 +48,7 @@ class User(Base):
     rol = relationship("Role", back_populates="usuarios")
     sesiones = relationship("Session", back_populates="usuario", cascade="all, delete-orphan")
     logs_auditoria = relationship("AuditLog", back_populates="usuario")
+    reportes = relationship("Reporte", back_populates="usuario")
 
 
 class Session(Base):
