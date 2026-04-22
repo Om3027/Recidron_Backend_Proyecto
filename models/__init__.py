@@ -1,4 +1,4 @@
-from .database import get_connection, DB_CONFIG
+from .database import get_connection, DB_CONFIG, engine, SessionLocal, Base, get_db
 from .schemas import create_tables
 from .migrations import run_migrations
 from .seeders import run_seeders
@@ -25,4 +25,4 @@ def init_db():
     conn.close()
     print('[ OK ] MySQL - Base de datos sincronizada correctamente.')
 
-__all__ = ["get_connection", "init_db", "DB_CONFIG"]
+__all__ = ["get_connection", "init_db", "DB_CONFIG", "engine", "SessionLocal", "Base", "get_db"]
