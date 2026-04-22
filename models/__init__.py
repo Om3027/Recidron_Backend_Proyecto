@@ -1,5 +1,5 @@
 from .database import get_connection, DB_CONFIG
-from .schema import create_tables
+from .schemas import create_tables
 from .migrations import run_migrations
 from .seeders import run_seeders
 
