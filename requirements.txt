@@ -5,4 +5,5 @@ mysql-connector-python
 python-dotenv
 passlib[argon2]
 argon2-cffi
-
+SQLAlchemy
+SQLAlchemy-Utils
