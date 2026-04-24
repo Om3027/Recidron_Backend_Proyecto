@@ -93,6 +93,64 @@ class ServicioUsuarios:
             self.db.rollback()
             raise HTTPException(status_code=500, detail="Error interno al crear el usuario")
 
+    def actualizar_perfil_propio(self, usuario_id: int, datos: dict) -> dict:
+        """
+        Permite al usuario editar su propio perfil.
+        - Solo puede cambiar: nombre, email, codigo_estudiantil y contraseña.
+        - Si envía nueva_password, confirmar_password es obligatorio y deben coincidir.
+        - Mínimo 8 caracteres para la nueva contraseña.
+        """
+        usuario = self.repositorio_usuarios.obtener_activo_por_id(usuario_id)
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        nueva_pass   = datos.get("nueva_password")
+        confirma     = datos.get("confirmar_password")
+
+        # ── Validaciones de contraseña ─────────────────────────────────────────
+        if nueva_pass or confirma:
+            if not nueva_pass or not confirma:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Debes enviar nueva_password y confirmar_password juntos."
+                )
+            if nueva_pass != confirma:
+                raise HTTPException(status_code=422, detail="Las contraseñas no coinciden.")
+            if len(nueva_pass) < 8:
+                raise HTTPException(
+                    status_code=422,
+                    detail="La contraseña debe tener al menos 8 caracteres."
+                )
+
+        # ── Construir campos a actualizar ──────────────────────────────────────
+        campos: dict = {}
+        for campo in ("nombre", "email", "codigo_estudiantil"):
+            if datos.get(campo) is not None:
+                campos[campo] = datos[campo]
+
+        if nueva_pass:
+            campos["password"] = get_password_hash(nueva_pass)
+
+        valor_anterior = {
+            "nombre": usuario.nombre,
+            "email":  usuario.email,
+            "codigo_estudiantil": usuario.codigo_estudiantil,
+        }
+
+        if campos:
+            self.repositorio_usuarios.actualizar(usuario, campos)
+            campos_log = {k: v for k, v in campos.items() if k != "password"}
+            self.repositorio_logs.registrar(
+                usuario_id, "ACTUALIZAR", "usuarios",
+                "Usuario actualizó su propio perfil",
+                valor_anterior=valor_anterior, valor_nuevo=campos_log,
+            )
+
+        return {
+            "mensaje": "Perfil actualizado correctamente",
+            "campos":  [k for k in campos if k != "password"],
+        }
+
     def actualizar(self, usuario_id: int, datos: dict, auth_usuario_id: int) -> dict:
         usuario = self.repositorio_usuarios.obtener_activo_por_id(usuario_id)
         if not usuario:

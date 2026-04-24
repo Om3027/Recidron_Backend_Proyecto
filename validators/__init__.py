@@ -42,6 +42,20 @@ class UsuarioUpdate(BaseModel):
     rol_id:   Optional[int] = None
 
 
+class PerfilUpdate(BaseModel):
+    """
+    Datos para que un usuario edite su propio perfil.
+    - nombre, email y codigo_estudiantil son campos de identidad (opcionales).
+    - nueva_password + confirmar_password: deben enviarse juntas y coincidir.
+    - rol_id no está disponible: el usuario no puede cambiar su propio rol.
+    """
+    nombre:             Optional[str] = None
+    email:              Optional[str] = None
+    codigo_estudiantil: Optional[str] = None
+    nueva_password:     Optional[str] = None
+    confirmar_password: Optional[str] = None
+
+
 class SesionCreate(BaseModel):
     """Datos para registrar una sesión activa."""
     usuario_id: int

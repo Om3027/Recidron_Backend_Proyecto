@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioUsuarios, ServicioSesiones
-from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin
+from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate
 from routes.auth import verificar_permiso, obtener_usuario_opcional, obtener_usuario_actual
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
@@ -38,6 +38,20 @@ def obtener_perfil_propio(
 ):
     """Retorna los datos del usuario autenticado actualmente."""
     return ServicioUsuarios(db).obtener_perfil_propio(usuario_auth["id"])
+
+
+@router_usuarios.put("/me", summary="Editar mi propio perfil y seguridad")
+def editar_perfil_propio(
+    datos: PerfilUpdate,
+    usuario_auth: dict = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    """
+    El propio usuario puede editar su nombre, email y codigo_estudiantil.
+    Para cambiar la contraseña debe enviar nueva_password y confirmar_password
+    con el mismo valor y un mínimo de 8 caracteres.
+    """
+    return ServicioUsuarios(db).actualizar_perfil_propio(usuario_auth["id"], datos.dict())
 
 
 @router_usuarios.get("/{id}", summary="Obtener un usuario por ID")
