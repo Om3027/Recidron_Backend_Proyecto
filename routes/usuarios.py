@@ -1,69 +1,94 @@
-import sqlite3
-from fastapi import APIRouter, HTTPException
-from models import get_connection
-from validators import UsuarioCreate, UsuarioUpdate
-from routes.utils import error_404
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from models import get_db
+from servicios import ServicioUsuarios, ServicioSesiones
+from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate
+from routes.auth import verificar_permiso, obtener_usuario_opcional, obtener_usuario_actual
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
 
+
 @router_usuarios.get("/", summary="Listar todos los usuarios")
-def listar_usuarios():
-    """Consulta todos los usuarios (sin mostrar contraseñas)."""
-    conn = get_connection()
-    usuarios = conn.execute(
-        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios ORDER BY id"
-    ).fetchall()
-    conn.close()
-    return [dict(u) for u in usuarios]
+def listar_usuarios(
+    usuario_auth: dict = Depends(verificar_permiso("usuarios:leer")),
+    db: Session = Depends(get_db),
+):
+    """Consulta todos los usuarios activos (sin mostrar contraseñas)."""
+    return ServicioUsuarios(db).listar_todos()
+
 
 @router_usuarios.post("/", status_code=201, summary="Registrar un usuario")
-def crear_usuario(usuario: UsuarioCreate):
-    """Registra un nuevo usuario en el sistema."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM roles WHERE id = ?", (usuario.rol_id,)).fetchone():
-        conn.close(); raise HTTPException(status_code=404, detail="El rol no existe")
-    try:
-        cursor = conn.execute(
-            "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (?, ?, ?, ?)",
-            (usuario.nombre, usuario.email, usuario.password, usuario.rol_id)
-        )
-        conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
-        return {"id": nuevo_id, "nombre": usuario.nombre, "email": usuario.email, "rol_id": usuario.rol_id}
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=422, detail="El email ya está registrado")
+def registrar_usuario(
+    usuario: UsuarioCreate,
+    usuario_auth: dict | None = Depends(obtener_usuario_opcional),
+    db: Session = Depends(get_db),
+):
+    """
+    Registra un nuevo usuario.
+    - Sin token (público): se fuerza rol_id = 2 (Autor/Estudiante).
+    - Con token de admin: se permite elegir cualquier rol.
+    """
+    return ServicioUsuarios(db).registrar(usuario.dict(), usuario_auth)
+
+
+@router_usuarios.get("/me", summary="Obtener mi propio perfil")
+def obtener_perfil_propio(
+    usuario_auth: dict = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    """Retorna los datos del usuario autenticado actualmente."""
+    return ServicioUsuarios(db).obtener_perfil_propio(usuario_auth["id"])
+
+
+@router_usuarios.put("/me", summary="Editar mi propio perfil y seguridad")
+def editar_perfil_propio(
+    datos: PerfilUpdate,
+    usuario_auth: dict = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    """
+    El propio usuario puede editar su nombre, email y codigo_estudiantil.
+    Para cambiar la contraseña debe enviar nueva_password y confirmar_password
+    con el mismo valor y un mínimo de 8 caracteres.
+    """
+    return ServicioUsuarios(db).actualizar_perfil_propio(usuario_auth["id"], datos.dict())
+
 
 @router_usuarios.get("/{id}", summary="Obtener un usuario por ID")
-def obtener_usuario(id: int):
-    """Retorna los datos de un usuario específico."""
-    conn = get_connection()
-    u = conn.execute(
-        "SELECT id, nombre, email, activo, rol_id, creado_en FROM usuarios WHERE id = ?", (id,)
-    ).fetchone()
-    conn.close()
-    if not u: error_404("Usuario", id)
-    return dict(u)
+def obtener_usuario(
+    id: int,
+    usuario_auth: dict = Depends(verificar_permiso("usuarios:leer")),
+    db: Session = Depends(get_db),
+):
+    """Retorna los datos de un usuario específico activo."""
+    return ServicioUsuarios(db).obtener_por_id(id)
+
 
 @router_usuarios.put("/{id}", summary="Actualizar un usuario")
-def actualizar_usuario(id: int, datos: UsuarioUpdate):
-    """Modifica los datos de un usuario. Solo actualiza los campos enviados."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM usuarios WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Usuario", id)
-    campos = {k: v for k, v in datos.dict().items() if v is not None}
-    if campos:
-        set_clause = ", ".join([f"{k} = ?" for k in campos])
-        conn.execute(f"UPDATE usuarios SET {set_clause} WHERE id = ?", list(campos.values()) + [id])
-        conn.commit()
-    conn.close()
-    return {"mensaje": f"Usuario {id} actualizado", "campos": list(campos.keys())}
+def actualizar_usuario(
+    id: int,
+    datos: UsuarioUpdate,
+    usuario_auth: dict = Depends(verificar_permiso("usuarios:editar")),
+    db: Session = Depends(get_db),
+):
+    """Modifica los datos de un usuario activo con auditoría."""
+    return ServicioUsuarios(db).actualizar(id, datos.dict(), usuario_auth["id"])
 
-@router_usuarios.delete("/{id}", summary="Desactivar un usuario")
-def eliminar_usuario(id: int):
-    """Desactiva un usuario (soft delete — conserva historial de reportes)."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM usuarios WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Usuario", id)
-    conn.execute("UPDATE usuarios SET activo = 0 WHERE id = ?", (id,))
-    conn.commit(); conn.close()
-    return {"mensaje": f"Usuario {id} desactivado exitosamente"}
+
+@router_usuarios.delete("/{id}", summary="Desactivar un usuario (Soft-Delete)")
+def desactivar_usuario(
+    id: int,
+    usuario_auth: dict = Depends(verificar_permiso("usuarios:eliminar")),
+    db: Session = Depends(get_db),
+):
+    """Desactiva un usuario (soft delete)."""
+    return ServicioUsuarios(db).desactivar(id, usuario_auth["id"])
+
+
+@router_usuarios.post("/login", summary="Iniciar sesión")
+def iniciar_sesion(datos: UsuarioLogin, db: Session = Depends(get_db)):
+    """
+    Verifica las credenciales (email y password), genera un token de sesión único
+    y lo guarda en la base de datos para su validación posterior.
+    """
+    return ServicioSesiones(db).iniciar_sesion(datos.email, datos.password)

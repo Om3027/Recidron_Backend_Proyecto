@@ -1,71 +1,44 @@
-from fastapi import APIRouter, HTTPException
-from models import get_connection
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from models import get_db
+from servicios import ServicioReportes
 from validators import ReporteCreate, ReporteUpdate
-from routes.utils import error_404
+from routes.auth import verificar_permiso
 
 router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
+
 @router_reportes.get("/", summary="Listar todos los reportes")
-def listar_reportes():
-    """Consulta todos los reportes de residuos registrados."""
-    conn = get_connection()
-    reportes = conn.execute("SELECT * FROM reportes ORDER BY fecha_reporte DESC").fetchall()
-    conn.close()
-    return [dict(r) for r in reportes]
+def listar_reportes(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Consulta todos los reportes activos con nombres de catálogos."""
+    return ServicioReportes(db).listar_todos()
+
 
 @router_reportes.post("/", status_code=201, summary="Crear un reporte")
-def crear_reporte(reporte: ReporteCreate):
-    """Registra un nuevo reporte de residuo."""
-    conn = get_connection()
-    checks = [
-        ("usuarios",      reporte.usuario_id,      "Usuario"),
-        ("tipos_residuo", reporte.tipo_residuo_id,  "TipoResiduo"),
-        ("materiales",    reporte.material_id,       "Material"),
-        ("zonas_campus",  reporte.zona_id,           "Zona"),
-        ("tamanos",       reporte.tamano_id,         "Tamano"),
-    ]
-    for tabla, fk_id, nombre in checks:
-        if not conn.execute(f"SELECT id FROM {tabla} WHERE id = ?", (fk_id,)).fetchone():
-            conn.close()
-            raise HTTPException(status_code=404, detail=f"{nombre} con id {fk_id} no existe")
+def crear_reporte(reporte: ReporteCreate, usuario: dict = Depends(verificar_permiso("reportes:crear")), db: Session = Depends(get_db)):
+    """Registra un nuevo reporte de residuo con auditoría."""
+    return ServicioReportes(db).crear(reporte.dict(), usuario["id"])
 
-    cursor = conn.execute(
-        "INSERT INTO reportes (descripcion, usuario_id, tipo_residuo_id, material_id, zona_id, tamano_id) VALUES (?,?,?,?,?,?)",
-        (reporte.descripcion, reporte.usuario_id, reporte.tipo_residuo_id,
-        reporte.material_id, reporte.zona_id, reporte.tamano_id)
-    )
-    conn.commit(); nuevo_id = cursor.lastrowid; conn.close()
-    return {"id": nuevo_id, **reporte.dict()}
+
+@router_reportes.get("/stats/my", summary="Estadísticas de mis reportes")
+def obtener_mis_estadisticas(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Retorna un resumen de la actividad del usuario autenticado."""
+    return ServicioReportes(db).mis_estadisticas(usuario["id"])
+
 
 @router_reportes.get("/{id}", summary="Obtener reporte por ID")
-def obtener_reporte(id: int):
-    """Retorna un reporte específico con todos sus detalles."""
-    conn = get_connection()
-    r = conn.execute("SELECT * FROM reportes WHERE id = ?", (id,)).fetchone()
-    conn.close()
-    if not r: error_404("Reporte", id)
-    return dict(r)
+def obtener_reporte(id: int, usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Retorna un reporte específico que esté activo."""
+    return ServicioReportes(db).obtener_por_id(id)
+
 
 @router_reportes.put("/{id}", summary="Actualizar reporte")
-def actualizar_reporte(id: int, datos: ReporteUpdate):
-    """Modifica los datos de un reporte existente."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Reporte", id)
-    campos = {k: v for k, v in datos.dict().items() if v is not None}
-    if campos:
-        set_clause = ", ".join([f"{k} = ?" for k in campos])
-        conn.execute(f"UPDATE reportes SET {set_clause} WHERE id = ?", list(campos.values()) + [id])
-        conn.commit()
-    conn.close()
-    return {"mensaje": f"Reporte {id} actualizado", "campos": list(campos.keys())}
+def actualizar_reporte(id: int, datos: ReporteUpdate, usuario: dict = Depends(verificar_permiso("reportes:editar")), db: Session = Depends(get_db)):
+    """Modifica los datos de un reporte activo con auditoría."""
+    return ServicioReportes(db).actualizar(id, datos.dict(), usuario["id"])
 
-@router_reportes.delete("/{id}", summary="Eliminar reporte")
-def eliminar_reporte(id: int):
-    """Elimina un reporte de residuo."""
-    conn = get_connection()
-    if not conn.execute("SELECT id FROM reportes WHERE id = ?", (id,)).fetchone():
-        conn.close(); error_404("Reporte", id)
-    conn.execute("DELETE FROM reportes WHERE id = ?", (id,))
-    conn.commit(); conn.close()
-    return {"mensaje": f"Reporte {id} eliminado exitosamente"}
+
+@router_reportes.delete("/{id}", summary="Eliminar reporte (Soft-Delete)")
+def desactivar_reporte(id: int, usuario: dict = Depends(verificar_permiso("reportes:eliminar")), db: Session = Depends(get_db)):
+    """Realiza un borrado lógico del reporte."""
+    return ServicioReportes(db).desactivar(id, usuario["id"])

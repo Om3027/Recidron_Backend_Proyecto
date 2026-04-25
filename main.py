@@ -15,11 +15,12 @@
 
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from models import init_db
 from routes import (
     router_roles, router_usuarios, router_sesiones, router_logs,
     router_tipos, router_materiales, router_zonas, router_tamanos,
-    router_reportes, router_geos
+    router_reportes, router_geos, router_stats
 )
 
 
@@ -46,6 +47,15 @@ app = FastAPI(
     - **Geolocalizaciones** — Coordenadas GPS
     """,
     version="1.0.0",
+)
+
+# Configuración de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En producción, reemplazar con la URL específica del frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -84,3 +94,4 @@ app.include_router(router_zonas)
 app.include_router(router_tamanos)
 app.include_router(router_reportes)
 app.include_router(router_geos)
+app.include_router(router_stats)
