@@ -58,7 +58,11 @@ class ServicioUsuarios:
         - Sin token (público): se fuerza rol_id = 2 (Autor/Estudiante).
         - Con token de admin con permiso: se permite elegir cualquier rol.
         """
-        rol_final = 2
+        rol_autor = self.repositorio_roles.obtener_por_nombre("autor")
+        if not rol_autor:
+            raise HTTPException(status_code=500, detail="El rol base 'autor' no está configurado en el sistema")
+            
+        rol_final = rol_autor.id
         es_admin = False
 
         if usuario_auth and self.repositorio_usuarios.rol_tiene_permiso(usuario_auth["rol_id"], "usuarios:crear"):
