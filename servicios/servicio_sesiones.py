@@ -42,6 +42,7 @@ class ServicioSesiones:
             "email":  usuario.email,
             "nombre": usuario.nombre,
             "rol":    usuario.rol.nombre_rol,
+            "rol_id": usuario.rol_id,
         }
 
     def listar_todas(self) -> list:

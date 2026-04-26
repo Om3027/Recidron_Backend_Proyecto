@@ -23,7 +23,9 @@ class ServicioUsuarios:
             {
                 "id": u.id, "nombre": u.nombre, "email": u.email,
                 "codigo_estudiantil": u.codigo_estudiantil,
-                "es_activo": u.es_activo, "rol_id": u.rol_id, "creado_en": u.creado_en,
+                "es_activo": u.es_activo, "rol_id": u.rol_id,
+                "nombre_rol": u.rol.nombre_rol,
+                "creado_en": u.creado_en,
             }
             for u in usuarios
         ]
@@ -35,7 +37,9 @@ class ServicioUsuarios:
         return {
             "id": u.id, "nombre": u.nombre, "email": u.email,
             "codigo_estudiantil": u.codigo_estudiantil,
-            "es_activo": u.es_activo, "rol_id": u.rol_id, "creado_en": u.creado_en,
+            "es_activo": u.es_activo, "rol_id": u.rol_id,
+            "nombre_rol": u.rol.nombre_rol,
+            "creado_en": u.creado_en,
         }
 
     def obtener_perfil_propio(self, usuario_id: int) -> dict:
@@ -43,7 +47,9 @@ class ServicioUsuarios:
         return {
             "id": u.id, "nombre": u.nombre, "email": u.email,
             "codigo_estudiantil": u.codigo_estudiantil,
-            "rol_id": u.rol_id, "creado_en": u.creado_en,
+            "rol_id": u.rol_id,
+            "nombre_rol": u.rol.nombre_rol,
+            "creado_en": u.creado_en,
         }
 
     def registrar(self, datos: dict, usuario_auth: dict | None = None) -> dict:
