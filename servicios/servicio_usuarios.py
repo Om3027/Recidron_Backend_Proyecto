@@ -18,7 +18,7 @@ class ServicioUsuarios:
         self.repositorio_logs     = RepositorioLogs(db)
 
     def listar_todos(self) -> list:
-        usuarios = self.repositorio_usuarios.obtener_todos_activos()
+        usuarios = self.repositorio_usuarios.obtener_todos()
         return [
             {
                 "id": u.id, "nombre": u.nombre, "email": u.email,
@@ -162,16 +162,33 @@ class ServicioUsuarios:
         }
 
     def actualizar(self, usuario_id: int, datos: dict, auth_usuario_id: int) -> dict:
-        usuario = self.repositorio_usuarios.obtener_activo_por_id(usuario_id)
+        auth_user = self.repositorio_usuarios.obtener_activo_por_id(auth_usuario_id)
+        if not auth_user:
+            raise HTTPException(status_code=401, detail="Usuario autenticado no válido")
+
+        usuario = self.repositorio_usuarios.obtener_por_id(usuario_id)
         if not usuario:
             raise HTTPException(status_code=404, detail=f"Usuario con id {usuario_id} no encontrado")
+
+        campos = {k: v for k, v in datos.items() if v is not None}
+        es_super_admin = auth_user.email == "admin@recidron.com"
+
+        # Validaciones para Admin Normal
+        if not es_super_admin:
+            if usuario.email == "admin@recidron.com":
+                raise HTTPException(status_code=403, detail="No puedes modificar la cuenta del Super Administrador principal")
+            if "rol_id" in campos and campos["rol_id"] != usuario.rol_id:
+                raise HTTPException(status_code=403, detail="Solo el Super Administrador puede cambiar roles de usuarios")
+        else:
+            if usuario.email == "admin@recidron.com" and "es_activo" in campos and not campos["es_activo"]:
+                raise HTTPException(status_code=403, detail="El Super Administrador principal no puede ser desactivado")
 
         valor_anterior = {
             "nombre": usuario.nombre, "email": usuario.email,
             "codigo_estudiantil": usuario.codigo_estudiantil, "rol_id": usuario.rol_id,
+            "es_activo": usuario.es_activo
         }
 
-        campos = {k: v for k, v in datos.items() if v is not None}
         if "password" in campos:
             campos["password"] = get_password_hash(campos["password"])
 
@@ -187,6 +204,10 @@ class ServicioUsuarios:
         return {"mensaje": f"Usuario {usuario_id} actualizado", "campos": list(campos.keys())}
 
     def desactivar(self, usuario_id: int, auth_usuario_id: int) -> dict:
+        auth_user = self.repositorio_usuarios.obtener_activo_por_id(auth_usuario_id)
+        if not auth_user or auth_user.email != "admin@recidron.com":
+            raise HTTPException(status_code=403, detail="Solo el Super Administrador puede desactivar cuentas")
+
         usuario = self.repositorio_usuarios.obtener_activo_por_id(usuario_id)
         if not usuario:
             raise HTTPException(status_code=404, detail=f"Usuario con id {usuario_id} no encontrado")

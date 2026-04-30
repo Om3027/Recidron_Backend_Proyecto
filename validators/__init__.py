@@ -40,6 +40,7 @@ class UsuarioUpdate(BaseModel):
     password: Optional[str] = None
     codigo_estudiantil: Optional[str] = None
     rol_id:   Optional[int] = None
+    es_activo: Optional[bool] = None
 
 
 class PerfilUpdate(BaseModel):
