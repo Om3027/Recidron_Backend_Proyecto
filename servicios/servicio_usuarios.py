@@ -189,7 +189,10 @@ class ServicioUsuarios:
             "es_activo": usuario.es_activo
         }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6ff75cbc8f2c1888b561b803056f2632dff5cf3a
         if "password" in campos:
             campos["password"] = get_password_hash(campos["password"])
 

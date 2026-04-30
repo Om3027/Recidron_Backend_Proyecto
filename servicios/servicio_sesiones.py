@@ -26,7 +26,11 @@ class ServicioSesiones:
             raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
         if not usuario.es_activo:
+<<<<<<< HEAD
             raise HTTPException(status_code=403, detail="Tu cuenta está desactivada. Por favor contacta al administrador.")
+=======
+            raise HTTPException(status_code=403, detail="Tu cuenta está desactivada. Por favor contacta al administrador")
+>>>>>>> 6ff75cbc8f2c1888b561b803056f2632dff5cf3a
 
         token       = str(uuid.uuid4())
         vencimiento = datetime.now() + timedelta(hours=24)
