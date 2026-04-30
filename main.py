@@ -13,6 +13,7 @@
 # Swagger disponible en:
 #   http://localhost:3000/docs
 
+#Para probar local mente usar  uvicorn main:app --reload --port=3000 --host 0.0.0.0
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
