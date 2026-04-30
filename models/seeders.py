@@ -77,5 +77,11 @@ def run_seeders(db: Session):
         db.add_all([ZonaCampus(nombre_zona=n) for n in ['Biblioteca', 'Edificio A', 'Edificio B', 'Cafetería', 'Zona Deportiva', 'Parqueadero']])
     if db.query(Tamano).count() == 0:
         db.add_all([Tamano(nombre_tamano=n) for n in ['Leve', 'Mediano (2-5kg)', 'Crítico']])
+        
+    # Verificar que exista la opción "Otro" para el frontend
+    if not db.query(TipoResiduo).filter_by(nombre_tipo='Otro').first():
+        db.add(TipoResiduo(nombre_tipo='Otro'))
+    if not db.query(Material).filter_by(nombre_material='Otro').first():
+        db.add(Material(nombre_material='Otro'))
     
     db.commit()
