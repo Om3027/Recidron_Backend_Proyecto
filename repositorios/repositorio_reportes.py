@@ -13,8 +13,8 @@ class RepositorioReportes:
     def __init__(self, db: Session):
         self.db = db
 
-    def obtener_todos_activos(self) -> list[Reporte]:
-        """Trae todos los reportes activos junto con sus catálogos en una sola consulta SQL."""
+    def obtener_todos_activos(self, skip: int = 0, limit: int = 10) -> list[Reporte]:
+        """Trae todos los reportes activos junto con sus catálogos en una sola consulta SQL con paginación."""
         return (
             self.db.query(Reporte)
             .options(
@@ -25,6 +25,8 @@ class RepositorioReportes:
             )
             .filter(Reporte.es_activo == True)
             .order_by(Reporte.fecha_reporte.desc())
+            .offset(skip)
+            .limit(limit)
             .all()
         )
 

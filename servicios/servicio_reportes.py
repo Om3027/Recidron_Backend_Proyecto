@@ -22,8 +22,8 @@ class ServicioReportes:
         self.repositorio_tamanos   = RepositorioTamanos(db)
         self.repositorio_logs      = RepositorioLogs(db)
 
-    def listar_todos(self) -> list:
-        reportes = self.repositorio_reportes.obtener_todos_activos()
+    def listar_todos(self, skip: int = 0, limit: int = 10) -> list:
+        reportes = self.repositorio_reportes.obtener_todos_activos(skip=skip, limit=limit)
         return [
             {
                 "id":              r.id,
