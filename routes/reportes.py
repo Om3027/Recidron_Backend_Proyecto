@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioReportes
@@ -9,9 +9,9 @@ router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
 
 @router_reportes.get("/", summary="Listar todos los reportes")
-def listar_reportes(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
-    """Consulta todos los reportes activos con nombres de catálogos."""
-    return ServicioReportes(db).listar_todos()
+def listar_reportes(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100), usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Consulta todos los reportes activos con nombres de catálogos y paginación."""
+    return ServicioReportes(db).listar_todos(skip=skip, limit=limit)
 
 
 @router_reportes.post("/", status_code=201, summary="Crear un reporte")
