@@ -13,6 +13,7 @@ from .repositorio_tamanos            import RepositorioTamanos
 from .repositorio_reportes           import RepositorioReportes
 from .repositorio_geolocalizaciones  import RepositorioGeolocalizaciones
 from .repositorio_estadisticas       import RepositorioEstadisticas
+from .repositorio_fotos              import RepositorioFotos
 
 __all__ = [
     "RepositorioRoles",
@@ -26,4 +27,5 @@ __all__ = [
     "RepositorioReportes",
     "RepositorioGeolocalizaciones",
     "RepositorioEstadisticas",
+    "RepositorioFotos",
 ]
