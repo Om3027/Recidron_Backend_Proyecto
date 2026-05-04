@@ -45,7 +45,7 @@ def desactivar_reporte(id: int, usuario: dict = Depends(verificar_permiso("repor
 
 
 @router_reportes.post("/{id}/foto", summary="Subir o actualizar foto del reporte")
-def subir_foto_reporte(id: int, file: UploadFile = File(...), usuario: dict = Depends(verificar_permiso("reportes:editar")), db: Session = Depends(get_db)):
+def subir_foto_reporte(id: int, file: UploadFile = File(...), usuario: dict = Depends(verificar_permiso("reportes:crear")), db: Session = Depends(get_db)):
     """Sube una imagen a Cloudinary y la asocia al reporte (1:1)."""
     archivo_bytes = file.file.read()
     return ServicioReportes(db).agregar_o_actualizar_foto(id, archivo_bytes, usuario["id"])
