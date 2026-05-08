@@ -40,6 +40,15 @@ def obtener_perfil_propio(
     return ServicioUsuarios(db).obtener_perfil_propio(usuario_auth["id"])
 
 
+@router_usuarios.get("/soporte", summary="Obtener contactos de soporte (Administradores)")
+def obtener_contactos_soporte(
+    usuario_auth: dict | None = Depends(obtener_usuario_opcional),
+    db: Session = Depends(get_db),
+):
+    """Retorna los administradores dependiendo del rol del solicitante."""
+    return ServicioUsuarios(db).obtener_soporte(usuario_auth)
+
+
 @router_usuarios.put("/me", summary="Editar mi propio perfil y seguridad")
 def editar_perfil_propio(
     datos: PerfilUpdate,

@@ -26,6 +26,15 @@ class RepositorioUsuarios:
     def obtener_por_email(self, email: str) -> User | None:
         return self.db.query(User).filter(User.email == email).first()
 
+    def obtener_administradores(self) -> list[User]:
+        return (
+            self.db.query(User)
+            .join(Role)
+            .filter(Role.nombre_rol.ilike("%admin%"), User.es_activo == True)
+            .order_by(User.id)
+            .all()
+        )
+
     def rol_tiene_permiso(self, rol_id: int, nombre_permiso: str) -> bool:
         resultado = (
             self.db.query(Role)
