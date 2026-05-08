@@ -73,6 +73,17 @@ class LogCreate(BaseModel):
 
 
 
+class PasswordRecoverRequest(BaseModel):
+    """Datos para solicitar la recuperación de contraseña."""
+    email: str
+
+
+class PasswordResetRequest(BaseModel):
+    """Datos para restablecer la contraseña usando el token temporal."""
+    token: str
+    nueva_password: str
+
+
 # PGC — RECIDRON APP
 
 class TipoResiduoCreate(BaseModel):
