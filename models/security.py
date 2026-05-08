@@ -79,3 +79,17 @@ class AuditLog(Base):
 
     # Relaciones
     usuario = relationship("User", back_populates="logs_auditoria")
+
+
+class PasswordRecoveryToken(Base):
+    __tablename__ = "recuperacion_passwords"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    creado_en = Column(DateTime, server_default=func.now())
+    expira_en = Column(DateTime, nullable=False)
+    usado = Column(Boolean, nullable=False, default=False)
+
+    # Relaciones
+    usuario = relationship("User")
