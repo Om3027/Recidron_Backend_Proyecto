@@ -1,8 +1,12 @@
-from fastapi import HTTPException
+import uuid
+from datetime import datetime, timedelta
+from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from repositorios import RepositorioUsuarios, RepositorioRoles, RepositorioLogs
 from utils.security import get_password_hash, verify_password
+from models.security import PasswordRecoveryToken
+from servicios.servicio_email import enviar_correo_recuperacion
 
 
 class ServicioUsuarios:
@@ -239,3 +243,60 @@ class ServicioUsuarios:
             f"Usuario {usuario_id} desactivado (soft-delete)"
         )
         return {"mensaje": f"Usuario {usuario_id} desactivado exitosamente"}
+
+    def solicitar_recuperacion(self, email: str, background_tasks: BackgroundTasks) -> dict:
+        usuario = self.repositorio_usuarios.obtener_por_email(email)
+        # Si el usuario no existe, retornamos éxito igualmente para evitar enumeración de usuarios
+        if not usuario:
+            return {"mensaje": "Si el correo está registrado, recibirás un enlace de recuperación."}
+
+        # Generar token único (UUID v4)
+        token = str(uuid.uuid4())
+        expiracion = datetime.now() + timedelta(minutes=15)
+
+        nuevo_token = PasswordRecoveryToken(
+            usuario_id=usuario.id,
+            token=token,
+            expira_en=expiracion
+        )
+        self.db.add(nuevo_token)
+        self.db.commit()
+
+        # Añadir envío de correo en segundo plano
+        background_tasks.add_task(enviar_correo_recuperacion, email, token)
+
+        return {"mensaje": "Si el correo está registrado, recibirás un enlace de recuperación."}
+
+    def restablecer_password(self, token: str, nueva_password: str) -> dict:
+        registro_token = self.db.query(PasswordRecoveryToken).filter(
+            PasswordRecoveryToken.token == token,
+            PasswordRecoveryToken.usado == False
+        ).first()
+
+        if not registro_token:
+            raise HTTPException(status_code=400, detail="El enlace de recuperación es inválido o ya fue usado.")
+
+        if registro_token.expira_en < datetime.now():
+            raise HTTPException(status_code=400, detail="El enlace de recuperación ha expirado.")
+
+        usuario = self.repositorio_usuarios.obtener_por_id(registro_token.usuario_id)
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+        if len(nueva_password) < 8:
+            raise HTTPException(status_code=422, detail="La contraseña debe tener al menos 8 caracteres.")
+
+        # Actualizar contraseña
+        usuario.password = get_password_hash(nueva_password)
+        
+        # Invalidar el token
+        registro_token.usado = True
+        
+        self.db.commit()
+
+        self.repositorio_logs.registrar(
+            usuario.id, "ACTUALIZAR", "usuarios",
+            "Usuario restableció su contraseña mediante recuperación"
+        )
+
+        return {"mensaje": "Contraseña actualizada con éxito."}
