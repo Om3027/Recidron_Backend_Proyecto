@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioUsuarios, ServicioSesiones
-from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate
+from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate, PasswordRecoverRequest, PasswordResetRequest
 from routes.auth import verificar_permiso, obtener_usuario_opcional, obtener_usuario_actual
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
@@ -101,3 +101,28 @@ def iniciar_sesion(datos: UsuarioLogin, db: Session = Depends(get_db)):
     y lo guarda en la base de datos para su validación posterior.
     """
     return ServicioSesiones(db).iniciar_sesion(datos.email, datos.password)
+
+
+@router_usuarios.post("/recover", summary="Solicitar recuperación de contraseña")
+def solicitar_recuperacion(
+    datos: PasswordRecoverRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Recibe el email, genera un token temporal de 15 minutos y encola el envío 
+    del correo electrónico con un enlace profundo (Deep Link).
+    """
+    return ServicioUsuarios(db).solicitar_recuperacion(datos.email, background_tasks)
+
+
+@router_usuarios.post("/reset-password", summary="Restablecer contraseña")
+def restablecer_password(
+    datos: PasswordResetRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Verifica la validez del token recibido desde el Deep Link,
+    actualiza la contraseña del usuario y anula el token.
+    """
+    return ServicioUsuarios(db).restablecer_password(datos.token, datos.nueva_password)
