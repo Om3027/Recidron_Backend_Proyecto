@@ -129,3 +129,10 @@ class GeoUpdate(BaseModel):
     longitud:  Optional[float] = None
     altitud:   Optional[float] = None
     precision: Optional[float] = None
+
+
+class FotoResponse(BaseModel):
+    """Esquema de respuesta para la foto de un reporte."""
+    id: int
+    url: str
+    fecha_subida: str

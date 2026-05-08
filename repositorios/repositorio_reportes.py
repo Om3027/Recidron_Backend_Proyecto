@@ -22,6 +22,7 @@ class RepositorioReportes:
                 joinedload(Reporte.material),
                 joinedload(Reporte.zona),
                 joinedload(Reporte.tamano),
+                joinedload(Reporte.foto),
             )
             .filter(Reporte.es_activo == True)
             .order_by(Reporte.fecha_reporte.desc())
@@ -33,6 +34,7 @@ class RepositorioReportes:
     def obtener_activo_por_id(self, reporte_id: int) -> Reporte | None:
         return (
             self.db.query(Reporte)
+            .options(joinedload(Reporte.foto))
             .filter(Reporte.id == reporte_id, Reporte.es_activo == True)
             .first()
         )

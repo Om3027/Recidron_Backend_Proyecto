@@ -52,6 +52,26 @@ class ServicioUsuarios:
             "creado_en": u.creado_en,
         }
 
+    def obtener_soporte(self, usuario_auth: dict | None) -> list:
+        admins = self.repositorio_usuarios.obtener_administradores()
+        
+        if usuario_auth and usuario_auth.get("nombre_rol", "").lower() == "admin" and usuario_auth.get("email") != "admin@recidron.com":
+            admins_filtrados = [u for u in admins if u.email == "admin@recidron.com"]
+        else:
+            admins_filtrados = [u for u in admins if u.email != "admin@recidron.com"]
+            if not admins_filtrados:
+                admins_filtrados = [u for u in admins if u.email == "admin@recidron.com"]
+                
+        return [
+            {
+                "id": u.id,
+                "nombre": u.nombre,
+                "email": u.email,
+                "rol": u.rol.nombre_rol,
+            }
+            for u in admins_filtrados
+        ]
+
     def registrar(self, datos: dict, usuario_auth: dict | None = None) -> dict:
         """
         Registra un nuevo usuario aplicando las reglas de negocio:
