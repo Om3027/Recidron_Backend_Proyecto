@@ -6,14 +6,14 @@ load_dotenv()
 
 # Configuración de conexión para fastapi-mail
 conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("SMTP_USER", ""),
-    MAIL_PASSWORD=os.getenv("SMTP_PASSWORD", ""),
-    MAIL_FROM=os.getenv("EMAIL_FROM", os.getenv("SMTP_USER", "")),
-    MAIL_PORT=int(os.getenv("SMTP_PORT", 587)),
-    MAIL_SERVER=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
-    MAIL_FROM_NAME="Soporte Recidron",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME", ""),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
+    MAIL_FROM=os.getenv("MAIL_FROM", ""),
+    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
+    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+    MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Soporte Recidron"),
+    MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True") == "True",
+    MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False") == "True",
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )

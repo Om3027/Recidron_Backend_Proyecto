@@ -36,8 +36,14 @@ SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://{DB_CONFIG['user']}:{DB_CONFI
 # Crear el engine (motor de conexión)
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_recycle=3600,  # Reciclar conexiones cada hora para evitar caídas por inactividad
-    echo=False          # Cambiar a True si deseas ver las consultas SQL generadas en consola
+    pool_pre_ping=True,     # Verifica la conexión antes de usarla (reconecta si cayó)
+    pool_recycle=1800,      # Reciclar conexiones cada 30 min (Aiven cierra a los 60 min)
+    pool_size=5,            # Conexiones en el pool
+    max_overflow=10,        # Conexiones extra permitidas
+    connect_args={
+        "ssl_disabled": False   # SSL requerido por Aiven Cloud
+    },
+    echo=False              # Cambiar a True si deseas ver las consultas SQL generadas en consola
 )
 
 # Fábrica de sesiones para interactuar con la base de datos
