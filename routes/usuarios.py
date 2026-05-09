@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from models import get_db
-from servicios import ServicioUsuarios, ServicioSesiones
-from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate
+from servicios import ServicioUsuarios, ServicioSesiones, ServicioAutenticacion
+from validators import UsuarioCreate, UsuarioUpdate, UsuarioLogin, PerfilUpdate, SolicitarRecuperacion, RestablecerPassword
 from routes.auth import verificar_permiso, obtener_usuario_opcional, obtener_usuario_actual
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=[" Usuarios"])
@@ -101,3 +101,32 @@ def iniciar_sesion(datos: UsuarioLogin, db: Session = Depends(get_db)):
     y lo guarda en la base de datos para su validación posterior.
     """
     return ServicioSesiones(db).iniciar_sesion(datos.email, datos.password)
+
+
+@router_usuarios.post("/recover", summary="Solicitar código de recuperación de contraseña")
+def solicitar_recuperacion(
+    datos: SolicitarRecuperacion,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint púBlico. Genera un código OTP alfanumérico de 6 caracteres
+    y envía un correo electrónico al usuario con dicho código.
+    Por seguridad, siempre retorna el mismo mensaje independientemente
+    de si el correo existe o no.
+    """
+    return ServicioAutenticacion(db).solicitar_recuperacion(datos.email, background_tasks)
+
+
+@router_usuarios.post("/reset-password", summary="Restablecer contraseña con código OTP")
+def restablecer_password(
+    datos: RestablecerPassword,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint púBlico. Valida el código OTP recibido por correo y
+    actualiza la contraseña del usuario si el código es válido y no ha expirado.
+    """
+    return ServicioAutenticacion(db).restablecer_password(
+        datos.email, datos.codigo, datos.nueva_password
+    )

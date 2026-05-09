@@ -135,4 +135,18 @@ class FotoResponse(BaseModel):
     """Esquema de respuesta para la foto de un reporte."""
     id: int
     url: str
-    fecha_subida: str
+    fecha_subida: str
+
+
+# RECUPERACIÓN DE CONTRASEÑA
+
+class SolicitarRecuperacion(BaseModel):
+    """Datos para solicitar un código de recuperación por correo."""
+    email: str
+
+
+class RestablecerPassword(BaseModel):
+    """Datos para restablecer la contraseña con el código OTP."""
+    email:           str
+    codigo:          str
+    nueva_password:  str
