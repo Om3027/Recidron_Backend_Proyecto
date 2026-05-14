@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioReportes
 from validators import ReporteCreate, ReporteUpdate
 from routes.auth import verificar_permiso
+from utils.pdf_export import generar_pdf_reportes
 
 router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
@@ -24,6 +26,21 @@ def crear_reporte(reporte: ReporteCreate, usuario: dict = Depends(verificar_perm
 def obtener_mis_estadisticas(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
     """Retorna un resumen de la actividad del usuario autenticado."""
     return ServicioReportes(db).mis_estadisticas(usuario["id"])
+
+
+@router_reportes.get("/exportar/pdf", summary="Exportar reportes a PDF")
+def exportar_reportes_pdf(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Genera y descarga un archivo PDF con todos los reportes del sistema."""
+    # Obtenemos un límite amplio para la exportación
+    reportes = ServicioReportes(db).listar_todos(skip=0, limit=1000)
+    
+    pdf_buffer = generar_pdf_reportes(reportes, usuario)
+    
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": "attachment; filename=reportes_recidron.pdf"}
+    )
 
 
 @router_reportes.get("/{id}", summary="Obtener reporte por ID")

@@ -10,3 +10,4 @@ SQLAlchemy-Utils
 cloudinary
 python-multipart
 fastapi-mail
+reportlab
