@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from models import get_db
@@ -29,15 +29,31 @@ def obtener_mis_estadisticas(usuario: dict = Depends(verificar_permiso("reportes
 
 
 @router_reportes.get("/exportar/pdf", summary="Exportar reportes a PDF")
-def exportar_reportes_pdf(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+def exportar_reportes_pdf(
+    tipo_nombre: str = Query(None, description="Filtrar por nombre de tipo de residuo"),
+    fecha_inicio: str = Query(None, description="Fecha de inicio (YYYY-MM-DD)"),
+    fecha_fin: str = Query(None, description="Fecha de fin (YYYY-MM-DD)"),
+    limit: int = Query(100, description="Cantidad máxima de reportes"),
+    usuario: dict = Depends(verificar_permiso("reportes:leer")), 
+    db: Session = Depends(get_db)
+):
     """Genera y descarga un archivo PDF con todos los reportes del sistema."""
-    # Obtenemos un límite amplio para la exportación
-    reportes = ServicioReportes(db).listar_todos(skip=0, limit=1000)
+    reportes = ServicioReportes(db).listar_todos(
+        skip=0, limit=limit, tipo_nombre=tipo_nombre, 
+        fecha_inicio=fecha_inicio, fecha_fin=fecha_fin
+    )
     
-    pdf_buffer = generar_pdf_reportes(reportes, usuario)
+    filtros_aplicados = {
+        "tipo_nombre": tipo_nombre,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "limit": limit
+    }
     
-    return StreamingResponse(
-        pdf_buffer, 
+    pdf_buffer = generar_pdf_reportes(reportes, usuario, filtros_aplicados)
+    
+    return Response(
+        content=pdf_buffer.getvalue(), 
         media_type="application/pdf", 
         headers={"Content-Disposition": "attachment; filename=reportes_recidron.pdf"}
     )

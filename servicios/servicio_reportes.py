@@ -25,8 +25,13 @@ class ServicioReportes:
         self.repositorio_logs      = RepositorioLogs(db)
         self.repositorio_fotos     = RepositorioFotos(db)
 
-    def listar_todos(self, skip: int = 0, limit: int = 10) -> list:
-        reportes = self.repositorio_reportes.obtener_todos_activos(skip=skip, limit=limit)
+    def listar_todos(self, skip: int = 0, limit: int = 10,
+                     tipo_nombre: str = None, fecha_inicio: str = None, 
+                     fecha_fin: str = None) -> list:
+        reportes = self.repositorio_reportes.obtener_todos_activos(
+            skip=skip, limit=limit, tipo_nombre=tipo_nombre, 
+            fecha_inicio=fecha_inicio, fecha_fin=fecha_fin
+        )
         return [
             {
                 "id":              r.id,
@@ -38,8 +43,9 @@ class ServicioReportes:
                 "material_id":     r.material_id,
                 "zona_id":         r.zona_id,
                 "tamano_id":       r.tamano_id,
+                "usuario_nombre":  r.usuario.nombre                 if r.usuario       else None,
                 "tipo_nombre":     r.tipo_residuo.nombre_tipo       if r.tipo_residuo else None,
-                "material_nombre": r.material.nombre_material        if r.material     else None,
+                "material_nombre": r.material.nombre_material       if r.material     else None,
                 "zona_nombre":     r.zona.nombre_zona               if r.zona          else None,
                 "tamano_nombre":   r.tamano.nombre_tamano           if r.tamano        else None,
                 "foto_url":        r.foto.url                       if r.foto          else None,
