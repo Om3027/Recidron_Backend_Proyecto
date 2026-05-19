@@ -69,19 +69,31 @@ def run_seeders(db: Session):
     _seed_admin_maestro(db)
     
     # Modelos del proyecto
-    if db.query(TipoResiduo).count() == 0:
-        db.add_all([TipoResiduo(nombre_tipo=n) for n in ['Aprovechable', 'Orgánico', 'No Aprovechable', 'Peligroso']])
-    if db.query(Material).count() == 0:
-        db.add_all([Material(nombre_material=n) for n in ['Plástico', 'Vidrio', 'Cartón/Papel', 'Metal', 'Residuos Orgánicos', 'Restos de Comida']])
+    # Limpiar 'Especial' si se coló en la base de datos
+    db.query(TipoResiduo).filter_by(nombre_tipo='Especial').delete()
+    
+    # Tipos de Residuo
+    tipos_esperados = ['Aprovechable', 'Orgánico', 'No Aprovechable', 'Peligroso', 'Otro']
+    for t in tipos_esperados:
+        if not db.query(TipoResiduo).filter_by(nombre_tipo=t).first():
+            db.add(TipoResiduo(nombre_tipo=t))
+
+    # Materiales
+    materiales_esperados = [
+        'Plástico', 'Vidrio', 'Cartón/Papel', 'Latas/Metal', 
+        'Residuos Tecnológicos', 'Desechos Médicos', 'Residuos Orgánicos', 
+        'Restos de Comida', 'Icopor', 'Textiles', 'Escombros', 'Otro'
+    ]
+    for m in materiales_esperados:
+        if not db.query(Material).filter_by(nombre_material=m).first():
+            db.add(Material(nombre_material=m))
+
+    # Zonas
     if db.query(ZonaCampus).count() == 0:
         db.add_all([ZonaCampus(nombre_zona=n) for n in ['Biblioteca', 'Edificio A', 'Edificio B', 'Cafetería', 'Zona Deportiva', 'Parqueadero']])
+    
+    # Tamaños
     if db.query(Tamano).count() == 0:
         db.add_all([Tamano(nombre_tamano=n) for n in ['Leve', 'Mediano (2-5kg)', 'Crítico']])
-        
-    # Verificar que exista la opción "Otro" para el frontend
-    if not db.query(TipoResiduo).filter_by(nombre_tipo='Otro').first():
-        db.add(TipoResiduo(nombre_tipo='Otro'))
-    if not db.query(Material).filter_by(nombre_material='Otro').first():
-        db.add(Material(nombre_material='Otro'))
     
     db.commit()
