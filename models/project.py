@@ -63,6 +63,7 @@ class Reporte(Base):
     zona = relationship("ZonaCampus", back_populates="reportes")
     tamano = relationship("Tamano", back_populates="reportes")
     geolocalizacion = relationship("Geolocalizacion", back_populates="reporte", uselist=False, cascade="all, delete-orphan")
+    foto = relationship("FotoReporte", back_populates="reporte", uselist=False, cascade="all, delete-orphan")
 
 
 class Geolocalizacion(Base):
@@ -76,3 +77,14 @@ class Geolocalizacion(Base):
     reporte_id = Column(Integer, ForeignKey("reportes.id", ondelete="CASCADE"), unique=True, nullable=False)
 
     reporte = relationship("Reporte", back_populates="geolocalizacion")
+
+
+class FotoReporte(Base):
+    __tablename__ = "fotos_reporte"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    url = Column(Text, nullable=False)
+    fecha_subida = Column(DateTime, server_default=func.now())
+    reporte_id = Column(Integer, ForeignKey("reportes.id", ondelete="CASCADE"), unique=True, nullable=False)
+
+    reporte = relationship("Reporte", back_populates="foto")

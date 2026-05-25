@@ -1,17 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioReportes
 from validators import ReporteCreate, ReporteUpdate
 from routes.auth import verificar_permiso
+from utils.pdf_export import generar_pdf_reportes
 
 router_reportes = APIRouter(prefix="/reportes", tags=[" Reportes"])
 
 
 @router_reportes.get("/", summary="Listar todos los reportes")
-def listar_reportes(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
-    """Consulta todos los reportes activos con nombres de catálogos."""
-    return ServicioReportes(db).listar_todos()
+def listar_reportes(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100), usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
+    """Consulta todos los reportes activos con nombres de catálogos y paginación."""
+    return ServicioReportes(db).listar_todos(skip=skip, limit=limit)
 
 
 @router_reportes.post("/", status_code=201, summary="Crear un reporte")
@@ -24,6 +26,37 @@ def crear_reporte(reporte: ReporteCreate, usuario: dict = Depends(verificar_perm
 def obtener_mis_estadisticas(usuario: dict = Depends(verificar_permiso("reportes:leer")), db: Session = Depends(get_db)):
     """Retorna un resumen de la actividad del usuario autenticado."""
     return ServicioReportes(db).mis_estadisticas(usuario["id"])
+
+
+@router_reportes.get("/exportar/pdf", summary="Exportar reportes a PDF")
+def exportar_reportes_pdf(
+    tipo_nombre: str = Query(None, description="Filtrar por nombre de tipo de residuo"),
+    fecha_inicio: str = Query(None, description="Fecha de inicio (YYYY-MM-DD)"),
+    fecha_fin: str = Query(None, description="Fecha de fin (YYYY-MM-DD)"),
+    limit: int = Query(100, description="Cantidad máxima de reportes"),
+    usuario: dict = Depends(verificar_permiso("reportes:leer")), 
+    db: Session = Depends(get_db)
+):
+    """Genera y descarga un archivo PDF con todos los reportes del sistema."""
+    reportes = ServicioReportes(db).listar_todos(
+        skip=0, limit=limit, tipo_nombre=tipo_nombre, 
+        fecha_inicio=fecha_inicio, fecha_fin=fecha_fin
+    )
+    
+    filtros_aplicados = {
+        "tipo_nombre": tipo_nombre,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "limit": limit
+    }
+    
+    pdf_buffer = generar_pdf_reportes(reportes, usuario, filtros_aplicados)
+    
+    return Response(
+        content=pdf_buffer.getvalue(), 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": "attachment; filename=reportes_recidron.pdf"}
+    )
 
 
 @router_reportes.get("/{id}", summary="Obtener reporte por ID")
@@ -42,3 +75,10 @@ def actualizar_reporte(id: int, datos: ReporteUpdate, usuario: dict = Depends(ve
 def desactivar_reporte(id: int, usuario: dict = Depends(verificar_permiso("reportes:eliminar")), db: Session = Depends(get_db)):
     """Realiza un borrado lógico del reporte."""
     return ServicioReportes(db).desactivar(id, usuario["id"])
+
+
+@router_reportes.post("/{id}/foto", summary="Subir o actualizar foto del reporte")
+def subir_foto_reporte(id: int, file: UploadFile = File(...), usuario: dict = Depends(verificar_permiso("reportes:crear")), db: Session = Depends(get_db)):
+    """Sube una imagen a Cloudinary y la asocia al reporte (1:1)."""
+    archivo_bytes = file.file.read()
+    return ServicioReportes(db).agregar_o_actualizar_foto(id, archivo_bytes, usuario["id"])

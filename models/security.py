@@ -49,6 +49,7 @@ class User(Base):
     sesiones = relationship("Session", back_populates="usuario", cascade="all, delete-orphan")
     logs_auditoria = relationship("AuditLog", back_populates="usuario")
     reportes = relationship("Reporte", back_populates="usuario")
+    codigos_recuperacion = relationship("PasswordRecoveryCode", back_populates="usuario", cascade="all, delete-orphan")
 
 
 class Session(Base):
@@ -79,3 +80,16 @@ class AuditLog(Base):
 
     # Relaciones
     usuario = relationship("User", back_populates="logs_auditoria")
+
+class PasswordRecoveryCode(Base):
+    __tablename__ = "recuperacion_passwords"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    codigo = Column(String(10), nullable=False)
+    creado_en = Column(DateTime, server_default=func.now())
+    expira_en = Column(DateTime, nullable=False)
+    usado = Column(Boolean, default=False)
+
+    # Relaciones
+    usuario = relationship("User", back_populates="codigos_recuperacion")

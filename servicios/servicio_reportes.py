@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from repositorios import (
     RepositorioReportes, RepositorioUsuarios, RepositorioTiposResiduo,
     RepositorioMateriales, RepositorioZonasCampus, RepositorioTamanos, RepositorioLogs,
+    RepositorioFotos,
 )
+from utils.cloudinary_upload import subir_imagen_cloudinary
 
 
 class ServicioReportes:
@@ -21,9 +23,15 @@ class ServicioReportes:
         self.repositorio_zonas     = RepositorioZonasCampus(db)
         self.repositorio_tamanos   = RepositorioTamanos(db)
         self.repositorio_logs      = RepositorioLogs(db)
+        self.repositorio_fotos     = RepositorioFotos(db)
 
-    def listar_todos(self) -> list:
-        reportes = self.repositorio_reportes.obtener_todos_activos()
+    def listar_todos(self, skip: int = 0, limit: int = 10,
+                     tipo_nombre: str = None, fecha_inicio: str = None, 
+                     fecha_fin: str = None) -> list:
+        reportes = self.repositorio_reportes.obtener_todos_activos(
+            skip=skip, limit=limit, tipo_nombre=tipo_nombre, 
+            fecha_inicio=fecha_inicio, fecha_fin=fecha_fin
+        )
         return [
             {
                 "id":              r.id,
@@ -35,10 +43,12 @@ class ServicioReportes:
                 "material_id":     r.material_id,
                 "zona_id":         r.zona_id,
                 "tamano_id":       r.tamano_id,
+                "usuario_nombre":  r.usuario.nombre                 if r.usuario       else None,
                 "tipo_nombre":     r.tipo_residuo.nombre_tipo       if r.tipo_residuo else None,
-                "material_nombre": r.material.nombre_material        if r.material     else None,
+                "material_nombre": r.material.nombre_material       if r.material     else None,
                 "zona_nombre":     r.zona.nombre_zona               if r.zona          else None,
                 "tamano_nombre":   r.tamano.nombre_tamano           if r.tamano        else None,
+                "foto_url":        r.foto.url                       if r.foto          else None,
             }
             for r in reportes
         ]
@@ -100,6 +110,27 @@ class ServicioReportes:
         self.repositorio_logs.registrar(usuario_id, "ELIMINAR", "reportes",
                                         f"Reporte {reporte_id} marcado como inactivo (soft-delete)")
         return {"mensaje": f"Reporte {reporte_id} eliminado exitosamente (lógico)"}
+
+    def agregar_o_actualizar_foto(self, reporte_id: int, archivo_bytes: bytes, usuario_id: int) -> dict:
+        r = self.repositorio_reportes.obtener_activo_por_id(reporte_id)
+        if not r:
+            raise HTTPException(status_code=404, detail=f"Reporte con id {reporte_id} no encontrado")
+        
+        # Validar si el usuario tiene permiso sobre este reporte (opcional, dependiendo de tus reglas)
+        # if r.usuario_id != usuario_id:
+        #    raise HTTPException(status_code=403, detail="No tienes permiso para modificar este reporte")
+
+        # Subir a Cloudinary
+        url_segura = subir_imagen_cloudinary(archivo_bytes)
+        
+        # Guardar en base de datos
+        foto = self.repositorio_fotos.guardar_o_actualizar(reporte_id, url_segura)
+        
+        # Registrar log
+        self.repositorio_logs.registrar(usuario_id, "ACTUALIZAR", "fotos_reporte",
+                                        f"Foto subida para el reporte {reporte_id}", valor_nuevo={"url": url_segura})
+                                        
+        return {"mensaje": "Foto subida exitosamente", "url": url_segura}
 
     def mis_estadisticas(self, usuario_id: int) -> dict:
         total    = self.repositorio_reportes.contar_por_usuario(usuario_id)

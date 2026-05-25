@@ -11,6 +11,9 @@ class RepositorioUsuarios:
     def __init__(self, db: Session):
         self.db = db
 
+    def obtener_todos(self) -> list[User]:
+        return self.db.query(User).order_by(User.id).all()
+
     def obtener_todos_activos(self) -> list[User]:
         return self.db.query(User).filter(User.es_activo == True).order_by(User.id).all()
 
@@ -21,7 +24,16 @@ class RepositorioUsuarios:
         return self.db.query(User).filter(User.id == usuario_id, User.es_activo == True).first()
 
     def obtener_por_email(self, email: str) -> User | None:
-        return self.db.query(User).filter(User.email == email, User.es_activo == True).first()
+        return self.db.query(User).filter(User.email == email).first()
+
+    def obtener_administradores(self) -> list[User]:
+        return (
+            self.db.query(User)
+            .join(Role)
+            .filter(Role.nombre_rol.ilike("%admin%"), User.es_activo == True)
+            .order_by(User.id)
+            .all()
+        )
 
     def rol_tiene_permiso(self, rol_id: int, nombre_permiso: str) -> bool:
         resultado = (

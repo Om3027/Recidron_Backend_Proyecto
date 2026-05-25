@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from models import Reporte, Material
+from models import Reporte, Material, TipoResiduo
 
 
 class RepositorioReportes:
@@ -13,24 +13,36 @@ class RepositorioReportes:
     def __init__(self, db: Session):
         self.db = db
 
-    def obtener_todos_activos(self) -> list[Reporte]:
-        """Trae todos los reportes activos junto con sus catálogos en una sola consulta SQL."""
-        return (
+    def obtener_todos_activos(self, skip: int = 0, limit: int = 10,
+                              tipo_nombre: str = None, fecha_inicio: str = None,
+                              fecha_fin: str = None) -> list[Reporte]:
+        """Trae todos los reportes activos junto con sus catálogos en una sola consulta SQL con paginación y filtros opcionales."""
+        query = (
             self.db.query(Reporte)
             .options(
                 joinedload(Reporte.tipo_residuo),
                 joinedload(Reporte.material),
                 joinedload(Reporte.zona),
                 joinedload(Reporte.tamano),
+                joinedload(Reporte.foto),
+                joinedload(Reporte.usuario),
             )
             .filter(Reporte.es_activo == True)
-            .order_by(Reporte.fecha_reporte.desc())
-            .all()
         )
+        
+        if tipo_nombre and tipo_nombre != "Todos":
+            query = query.join(Reporte.tipo_residuo).filter(TipoResiduo.nombre_tipo == tipo_nombre)
+        if fecha_inicio:
+            query = query.filter(Reporte.fecha_reporte >= f"{fecha_inicio} 00:00:00")
+        if fecha_fin:
+            query = query.filter(Reporte.fecha_reporte <= f"{fecha_fin} 23:59:59")
+            
+        return query.order_by(Reporte.fecha_reporte.desc()).offset(skip).limit(limit).all()
 
     def obtener_activo_por_id(self, reporte_id: int) -> Reporte | None:
         return (
             self.db.query(Reporte)
+            .options(joinedload(Reporte.foto))
             .filter(Reporte.id == reporte_id, Reporte.es_activo == True)
             .first()
         )
