@@ -25,7 +25,10 @@ class ServicioAutenticacion:
         if not authorization:
             raise HTTPException(status_code=401, detail="Token no proporcionado")
 
-        token = authorization.replace("Bearer ", "").strip()
+        token = authorization.strip().strip('"').strip("'")
+        if token.lower().startswith("bearer "):
+            token = token[7:].strip()
+            
         sesion = self.repositorio_sesiones.obtener_por_token(token)
 
         if not sesion or not sesion.usuario:

@@ -1,20 +1,38 @@
-from fastapi import Header, HTTPException, Depends
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models import get_db
 from servicios import ServicioAutenticacion
 from repositorios import RepositorioUsuarios
 
+# ── Esquema de seguridad Bearer para Swagger UI y OpenAPI ───────────────────────
+# auto_error=False permite que las rutas públicas u opcionales no lancen error automáticamente
+bearer_scheme = HTTPBearer(auto_error=False)
+
 
 # ── Dependencias de autenticación reutilizables en todas las rutas ─────────────
 
-def obtener_usuario_actual(authorization: str = Header(None), db: Session = Depends(get_db)) -> dict:
-    """Extrae y valida el token del header Authorization."""
-    return ServicioAutenticacion(db).obtener_usuario_actual(authorization)
+def obtener_usuario_actual(
+    auth: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Extrae y valida el token del header Authorization (vía Swagger o Frontend)."""
+    if not auth:
+        raise HTTPException(status_code=401, detail="Token no proporcionado")
+    return ServicioAutenticacion(db).obtener_usuario_actual(auth.credentials)
 
 
-def obtener_usuario_opcional(authorization: str = Header(None), db: Session = Depends(get_db)) -> dict | None:
+def obtener_usuario_opcional(
+    auth: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> dict | None:
     """Intenta obtener el usuario; retorna None si no hay token válido."""
-    return ServicioAutenticacion(db).obtener_usuario_opcional(authorization)
+    if not auth:
+        return None
+    try:
+        return ServicioAutenticacion(db).obtener_usuario_actual(auth.credentials)
+    except HTTPException:
+        return None
 
 
 def verificar_permiso(permiso_requerido: str):
@@ -40,11 +58,19 @@ def verificar_permiso(permiso_requerido: str):
 # ── Alias de compatibilidad (mantienen los nombres originales) ─────────────────
 # Permiten que las rutas que no se han migrado aún sigan funcionando sin cambios.
 
-def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)) -> dict:
-    return obtener_usuario_actual(authorization, db)
+def get_current_user(
+    auth: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> dict:
+    return obtener_usuario_actual(auth, db)
 
-def get_optional_user(authorization: str = Header(None), db: Session = Depends(get_db)) -> dict | None:
-    return obtener_usuario_opcional(authorization, db)
+
+def get_optional_user(
+    auth: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> dict | None:
+    return obtener_usuario_opcional(auth, db)
+
 
 def check_permission(permission_required: str):
     return verificar_permiso(permission_required)
