@@ -193,6 +193,10 @@ class ServicioUsuarios:
         campos = {k: v for k, v in datos.items() if v is not None}
         es_super_admin = auth_user.email == "admin@recidron.com"
 
+        # Validación para evitar auto-desactivación
+        if usuario_id == auth_usuario_id and "es_activo" in campos and not campos["es_activo"]:
+            raise HTTPException(status_code=400, detail="Operación no permitida: No puedes desactivar tu propia cuenta")
+
         # Validaciones para Admin Normal
         if not es_super_admin:
             if usuario.email == "admin@recidron.com":
@@ -225,6 +229,9 @@ class ServicioUsuarios:
         return {"mensaje": f"Usuario {usuario_id} actualizado", "campos": list(campos.keys())}
 
     def desactivar(self, usuario_id: int, auth_usuario_id: int) -> dict:
+        if usuario_id == auth_usuario_id:
+            raise HTTPException(status_code=400, detail="Operación no permitida: No puedes desactivar tu propia cuenta")
+
         auth_user = self.repositorio_usuarios.obtener_activo_por_id(auth_usuario_id)
         if not auth_user or auth_user.email != "admin@recidron.com":
             raise HTTPException(status_code=403, detail="Solo el Super Administrador puede desactivar cuentas")
