@@ -103,6 +103,10 @@ class ReporteCreate(BaseModel):
     material_id:     int
     zona_id:         int
     tamano_id:       int
+    latitud:         Optional[float] = None
+    longitud:        Optional[float] = None
+    altitud:         Optional[float] = None
+    precision:       Optional[float] = None
 
 
 class ReporteUpdate(BaseModel):
@@ -112,6 +116,10 @@ class ReporteUpdate(BaseModel):
     material_id:     Optional[int] = None
     zona_id:         Optional[int] = None
     tamano_id:       Optional[int] = None
+    latitud:         Optional[float] = None
+    longitud:        Optional[float] = None
+    altitud:         Optional[float] = None
+    precision:       Optional[float] = None
 
 
 class GeoCreate(BaseModel):

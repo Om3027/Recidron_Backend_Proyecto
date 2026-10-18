@@ -2,7 +2,7 @@ from .database import get_connection, DB_CONFIG, engine, SessionLocal, Base, get
 # Remove raw SQL imports since SQLAlchemy handles it now
 from .seeders import run_seeders
 from .security import Role, Permission, User, Session, AuditLog
-from .project import TipoResiduo, Material, ZonaCampus, Tamano, Reporte, Geolocalizacion
+from .project import TipoResiduo, Material, ZonaCampus, Tamano, Reporte, Geolocalizacion, FotoReporte
 
 def init_db():
     """
@@ -26,5 +26,5 @@ __all__ = [
     "get_connection", "init_db", "DB_CONFIG", 
     "engine", "SessionLocal", "Base", "get_db",
     "Role", "Permission", "User", "Session", "AuditLog",
-    "TipoResiduo", "Material", "ZonaCampus", "Tamano", "Reporte", "Geolocalizacion"
+    "TipoResiduo", "Material", "ZonaCampus", "Tamano", "Reporte", "Geolocalizacion", "FotoReporte"
 ]

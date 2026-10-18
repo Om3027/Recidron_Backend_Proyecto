@@ -26,6 +26,7 @@ class RepositorioReportes:
                 joinedload(Reporte.tamano),
                 joinedload(Reporte.foto),
                 joinedload(Reporte.usuario),
+                joinedload(Reporte.geolocalizacion),
             )
             .filter(Reporte.es_activo == True)
         )
@@ -42,7 +43,15 @@ class RepositorioReportes:
     def obtener_activo_por_id(self, reporte_id: int) -> Reporte | None:
         return (
             self.db.query(Reporte)
-            .options(joinedload(Reporte.foto))
+            .options(
+                joinedload(Reporte.foto),
+                joinedload(Reporte.geolocalizacion),
+                joinedload(Reporte.tipo_residuo),
+                joinedload(Reporte.material),
+                joinedload(Reporte.zona),
+                joinedload(Reporte.tamano),
+                joinedload(Reporte.usuario),
+            )
             .filter(Reporte.id == reporte_id, Reporte.es_activo == True)
             .first()
         )
