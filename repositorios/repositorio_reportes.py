@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from models import Reporte, Material, TipoResiduo
+from models import Reporte, Material, TipoResiduo, SubzonaCampus
 
 
 class RepositorioReportes:
@@ -23,9 +23,11 @@ class RepositorioReportes:
                 joinedload(Reporte.tipo_residuo),
                 joinedload(Reporte.material),
                 joinedload(Reporte.zona),
+                joinedload(Reporte.subzona).joinedload(SubzonaCampus.tipo_subzona),
                 joinedload(Reporte.tamano),
                 joinedload(Reporte.foto),
                 joinedload(Reporte.usuario),
+                joinedload(Reporte.geolocalizacion),
             )
             .filter(Reporte.es_activo == True)
         )
@@ -42,19 +44,29 @@ class RepositorioReportes:
     def obtener_activo_por_id(self, reporte_id: int) -> Reporte | None:
         return (
             self.db.query(Reporte)
-            .options(joinedload(Reporte.foto))
+            .options(
+                joinedload(Reporte.foto),
+                joinedload(Reporte.geolocalizacion),
+                joinedload(Reporte.tipo_residuo),
+                joinedload(Reporte.material),
+                joinedload(Reporte.zona),
+                joinedload(Reporte.subzona).joinedload(SubzonaCampus.tipo_subzona),
+                joinedload(Reporte.tamano),
+                joinedload(Reporte.usuario),
+            )
             .filter(Reporte.id == reporte_id, Reporte.es_activo == True)
             .first()
         )
 
     def crear(self, descripcion: str | None, usuario_id: int, tipo_residuo_id: int,
-              material_id: int, zona_id: int, tamano_id: int) -> Reporte:
+              material_id: int, zona_id: int, tamano_id: int, subzona_id: int | None = None) -> Reporte:
         nuevo = Reporte(
             descripcion=descripcion,
             usuario_id=usuario_id,
             tipo_residuo_id=tipo_residuo_id,
             material_id=material_id,
             zona_id=zona_id,
+            subzona_id=subzona_id,
             tamano_id=tamano_id,
         )
         self.db.add(nuevo)

@@ -11,6 +11,7 @@ from .servicio_catalogos         import ServicioCatalogos
 from .servicio_reportes          import ServicioReportes
 from .servicio_geolocalizaciones import ServicioGeolocalizaciones
 from .servicio_estadisticas      import ServicioEstadisticas
+from .servicio_subzonas          import ServicioSubzonas
 
 __all__ = [
     "ServicioAutenticacion",
@@ -22,4 +23,5 @@ __all__ = [
     "ServicioReportes",
     "ServicioGeolocalizaciones",
     "ServicioEstadisticas",
+    "ServicioSubzonas",
 ]
