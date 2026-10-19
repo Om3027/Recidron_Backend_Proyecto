@@ -21,7 +21,7 @@ from models import init_db
 from routes import (
     router_roles, router_usuarios, router_sesiones, router_logs,
     router_tipos, router_materiales, router_zonas, router_tamanos,
-    router_reportes, router_geos, router_stats
+    router_reportes, router_geos, router_stats, router_subzonas
 )
 
 
@@ -92,6 +92,7 @@ app.include_router(router_logs)
 app.include_router(router_tipos)
 app.include_router(router_materiales)
 app.include_router(router_zonas)
+app.include_router(router_subzonas)
 app.include_router(router_tamanos)
 app.include_router(router_reportes)
 app.include_router(router_geos)
