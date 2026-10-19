@@ -9,6 +9,7 @@ from .tamanos import router_tamanos
 from .reportes import router_reportes
 from .geolocalizaciones import router_geos
 from .stats import router_stats
+from .subzonas import router_subzonas
 
 __all__ = [
     "router_roles",
@@ -22,4 +23,5 @@ __all__ = [
     "router_reportes",
     "router_geos",
     "router_stats",
+    "router_subzonas",
 ]

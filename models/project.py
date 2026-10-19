@@ -31,6 +31,32 @@ class ZonaCampus(Base):
     es_activo = Column(Boolean, nullable=False, default=True)
 
     reportes = relationship("Reporte", back_populates="zona")
+    subzonas = relationship("SubzonaCampus", back_populates="zona", cascade="all, delete-orphan")
+
+
+class TipoSubzona(Base):
+    __tablename__ = "tipos_subzona"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    nombre_tipo = Column(String(100), unique=True, nullable=False)
+    es_activo = Column(Boolean, nullable=False, default=True)
+
+    subzonas = relationship("SubzonaCampus", back_populates="tipo_subzona")
+
+
+class SubzonaCampus(Base):
+    __tablename__ = "subzonas_campus"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    nombre_subzona = Column(String(100), nullable=False)
+    piso = Column(String(20), nullable=False, default="1", index=True)
+    es_activo = Column(Boolean, nullable=False, default=True)
+    zona_id = Column(Integer, ForeignKey("zonas_campus.id", ondelete="CASCADE"), nullable=False)
+    tipo_subzona_id = Column(Integer, ForeignKey("tipos_subzona.id"), nullable=False)
+
+    zona = relationship("ZonaCampus", back_populates="subzonas")
+    tipo_subzona = relationship("TipoSubzona", back_populates="subzonas")
+    reportes = relationship("Reporte", back_populates="subzona")
 
 
 class Tamano(Base):
@@ -54,6 +80,7 @@ class Reporte(Base):
     tipo_residuo_id = Column(Integer, ForeignKey("tipos_residuo.id"), nullable=False)
     material_id = Column(Integer, ForeignKey("materiales.id"), nullable=False)
     zona_id = Column(Integer, ForeignKey("zonas_campus.id"), nullable=False)
+    subzona_id = Column(Integer, ForeignKey("subzonas_campus.id"), nullable=True)
     tamano_id = Column(Integer, ForeignKey("tamanos.id"), nullable=False)
 
     # Relaciones
@@ -61,6 +88,7 @@ class Reporte(Base):
     tipo_residuo = relationship("TipoResiduo", back_populates="reportes")
     material = relationship("Material", back_populates="reportes")
     zona = relationship("ZonaCampus", back_populates="reportes")
+    subzona = relationship("SubzonaCampus", back_populates="reportes")
     tamano = relationship("Tamano", back_populates="reportes")
     geolocalizacion = relationship("Geolocalizacion", back_populates="reporte", uselist=False, cascade="all, delete-orphan")
     foto = relationship("FotoReporte", back_populates="reporte", uselist=False, cascade="all, delete-orphan")

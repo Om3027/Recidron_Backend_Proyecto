@@ -15,6 +15,7 @@ from .repositorio_geolocalizaciones  import RepositorioGeolocalizaciones
 from .repositorio_estadisticas       import RepositorioEstadisticas
 from .repositorio_fotos              import RepositorioFotos
 from .repositorio_recuperacion       import RepositorioRecuperacion
+from .repositorio_subzonas           import RepositorioSubzonas
 
 __all__ = [
     "RepositorioRoles",
@@ -30,4 +31,5 @@ __all__ = [
     "RepositorioEstadisticas",
     "RepositorioFotos",
     "RepositorioRecuperacion",
+    "RepositorioSubzonas",
 ]

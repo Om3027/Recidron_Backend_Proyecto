@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from repositorios import (
     RepositorioReportes, RepositorioUsuarios, RepositorioTiposResiduo,
     RepositorioMateriales, RepositorioZonasCampus, RepositorioTamanos, RepositorioLogs,
-    RepositorioFotos, RepositorioGeolocalizaciones,
+    RepositorioFotos, RepositorioGeolocalizaciones, RepositorioSubzonas,
 )
 from utils.cloudinary_upload import subir_imagen_cloudinary
 
@@ -21,6 +21,7 @@ class ServicioReportes:
         self.repositorio_tipos     = RepositorioTiposResiduo(db)
         self.repositorio_mats      = RepositorioMateriales(db)
         self.repositorio_zonas     = RepositorioZonasCampus(db)
+        self.repositorio_subzonas  = RepositorioSubzonas(db)
         self.repositorio_tamanos   = RepositorioTamanos(db)
         self.repositorio_logs      = RepositorioLogs(db)
         self.repositorio_fotos     = RepositorioFotos(db)
@@ -43,11 +44,23 @@ class ServicioReportes:
                 "tipo_residuo_id": r.tipo_residuo_id,
                 "material_id":     r.material_id,
                 "zona_id":         r.zona_id,
+                "subzona_id":      r.subzona_id,
                 "tamano_id":       r.tamano_id,
                 "usuario_nombre":  r.usuario.nombre                 if r.usuario       else None,
                 "tipo_nombre":     r.tipo_residuo.nombre_tipo       if r.tipo_residuo else None,
                 "material_nombre": r.material.nombre_material       if r.material     else None,
                 "zona_nombre":     r.zona.nombre_zona               if r.zona          else None,
+                "subzona_nombre":  r.subzona.nombre_subzona         if r.subzona       else None,
+                "subzona_piso":    r.subzona.piso                   if r.subzona       else None,
+                "subzona_tipo":    r.subzona.tipo_subzona.nombre_tipo if (r.subzona and r.subzona.tipo_subzona) else None,
+                "subzona": {
+                    "id":                  r.subzona.id,
+                    "nombre_subzona":      r.subzona.nombre_subzona,
+                    "piso":                r.subzona.piso,
+                    "zona_id":             r.subzona.zona_id,
+                    "tipo_subzona_id":     r.subzona.tipo_subzona_id,
+                    "tipo_subzona_nombre": r.subzona.tipo_subzona.nombre_tipo if r.subzona.tipo_subzona else None,
+                } if r.subzona else None,
                 "tamano_nombre":   r.tamano.nombre_tamano           if r.tamano        else None,
                 "foto_url":        r.foto.url                       if r.foto          else None,
                 "geolocalizacion": {
@@ -88,6 +101,17 @@ class ServicioReportes:
                 "reporte_id": r.id,
             }
 
+        subzona_dict = None
+        if r.subzona:
+            subzona_dict = {
+                "id":                  r.subzona.id,
+                "nombre_subzona":      r.subzona.nombre_subzona,
+                "piso":                r.subzona.piso,
+                "zona_id":             r.subzona.zona_id,
+                "tipo_subzona_id":     r.subzona.tipo_subzona_id,
+                "tipo_subzona_nombre": r.subzona.tipo_subzona.nombre_tipo if r.subzona.tipo_subzona else None,
+            }
+
         return {
             "id": r.id,
             "descripcion": r.descripcion,
@@ -97,11 +121,16 @@ class ServicioReportes:
             "tipo_residuo_id": r.tipo_residuo_id,
             "material_id": r.material_id,
             "zona_id": r.zona_id,
+            "subzona_id": r.subzona_id,
             "tamano_id": r.tamano_id,
             "usuario_nombre": r.usuario.nombre if r.usuario else None,
             "tipo_nombre": r.tipo_residuo.nombre_tipo if r.tipo_residuo else None,
             "material_nombre": r.material.nombre_material if r.material else None,
             "zona_nombre": r.zona.nombre_zona if r.zona else None,
+            "subzona_nombre": r.subzona.nombre_subzona if r.subzona else None,
+            "subzona_piso": r.subzona.piso if r.subzona else None,
+            "subzona_tipo": r.subzona.tipo_subzona.nombre_tipo if (r.subzona and r.subzona.tipo_subzona) else None,
+            "subzona": subzona_dict,
             "tamano_nombre": r.tamano.nombre_tamano if r.tamano else None,
             "foto_url": r.foto.url if r.foto else None,
             "foto": foto_dict,
@@ -113,7 +142,7 @@ class ServicioReportes:
         }
 
     def crear(self, datos: dict, usuario_id: int) -> dict:
-        """Valida las llaves foráneas y registra el reporte con geolocalización opcional."""
+        """Valida las llaves foráneas y registra el reporte con subzona y geolocalización opcional."""
         if not self.repositorio_usuarios.obtener_activo_por_id(datos["usuario_id"]):
             raise HTTPException(status_code=404, detail=f"Usuario con id {datos['usuario_id']} no existe o está inactivo")
         if not self.repositorio_tipos.obtener_activo_por_id(datos["tipo_residuo_id"]):
@@ -125,6 +154,14 @@ class ServicioReportes:
         if not self.repositorio_tamanos.obtener_activo_por_id(datos["tamano_id"]):
             raise HTTPException(status_code=404, detail=f"Tamaño con id {datos['tamano_id']} no existe o está inactivo")
 
+        subzona_id = datos.get("subzona_id")
+        if subzona_id is not None:
+            subzona = self.repositorio_subzonas.obtener_activa_por_id(subzona_id)
+            if not subzona:
+                raise HTTPException(status_code=404, detail=f"Subzona con id {subzona_id} no existe o está inactiva")
+            if subzona.zona_id != datos["zona_id"]:
+                raise HTTPException(status_code=400, detail=f"La subzona '{subzona.nombre_subzona}' no pertenece a la zona seleccionada")
+
         nuevo = self.repositorio_reportes.crear(
             descripcion=datos.get("descripcion"),
             usuario_id=datos["usuario_id"],
@@ -132,6 +169,7 @@ class ServicioReportes:
             material_id=datos["material_id"],
             zona_id=datos["zona_id"],
             tamano_id=datos["tamano_id"],
+            subzona_id=subzona_id,
         )
 
         latitud = datos.get("latitud")
@@ -172,8 +210,16 @@ class ServicioReportes:
         anterior = {
             "descripcion": r.descripcion, "usuario_id": r.usuario_id,
             "tipo_residuo_id": r.tipo_residuo_id, "material_id": r.material_id,
-            "zona_id": r.zona_id, "tamano_id": r.tamano_id,
+            "zona_id": r.zona_id, "subzona_id": r.subzona_id, "tamano_id": r.tamano_id,
         }
+
+        if "subzona_id" in datos and datos["subzona_id"] is not None:
+            zona_id_efectiva = datos.get("zona_id", r.zona_id)
+            subzona = self.repositorio_subzonas.obtener_activa_por_id(datos["subzona_id"])
+            if not subzona:
+                raise HTTPException(status_code=404, detail=f"Subzona con id {datos['subzona_id']} no existe o está inactiva")
+            if subzona.zona_id != zona_id_efectiva:
+                raise HTTPException(status_code=400, detail=f"La subzona '{subzona.nombre_subzona}' no pertenece a la zona seleccionada")
         
         geo_campos = {}
         for campo in ("latitud", "longitud", "altitud", "precision"):

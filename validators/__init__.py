@@ -90,6 +90,41 @@ class ZonaCampusCreate(BaseModel):
     nombre_zona: str
 
 
+class TipoSubzonaCreate(BaseModel):
+    """Datos para crear o actualizar un Tipo de Subzona."""
+    nombre_tipo: str
+
+
+class TipoSubzonaResponse(BaseModel):
+    id: int
+    nombre_tipo: str
+    es_activo: bool
+
+    class Config:
+        from_attributes = True
+
+
+class SubzonaCampusCreate(BaseModel):
+    """Datos para crear una nueva Subzona vinculada a una Zona."""
+    nombre_subzona:  str
+    zona_id:         int
+    tipo_subzona_id: int
+    piso:            str = "1"
+
+
+class SubzonaCampusResponse(BaseModel):
+    id:              int
+    nombre_subzona:  str
+    piso:            str
+    zona_id:         int
+    tipo_subzona_id: int
+    tipo_subzona_nombre: Optional[str] = None
+    es_activo:       bool
+
+    class Config:
+        from_attributes = True
+
+
 class TamanoCreate(BaseModel):
     """Datos para crear o actualizar un Tamaño."""
     nombre_tamano: str
@@ -102,6 +137,7 @@ class ReporteCreate(BaseModel):
     tipo_residuo_id: int
     material_id:     int
     zona_id:         int
+    subzona_id:      Optional[int] = None
     tamano_id:       int
     latitud:         Optional[float] = None
     longitud:        Optional[float] = None
@@ -115,6 +151,7 @@ class ReporteUpdate(BaseModel):
     tipo_residuo_id: Optional[int] = None
     material_id:     Optional[int] = None
     zona_id:         Optional[int] = None
+    subzona_id:      Optional[int] = None
     tamano_id:       Optional[int] = None
     latitud:         Optional[float] = None
     longitud:        Optional[float] = None
