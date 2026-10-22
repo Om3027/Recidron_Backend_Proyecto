@@ -11,3 +11,5 @@ cloudinary
 python-multipart
 fastapi-mail
 reportlab
+pytest
+pytest-mock
