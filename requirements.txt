@@ -13,3 +13,4 @@ fastapi-mail
 reportlab
 pytest
 pytest-mock
+resend
