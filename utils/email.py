@@ -8,7 +8,7 @@ load_dotenv()
 resend.api_key = os.getenv("RESEND_API_KEY", "")
 
 # Remitente configurado (usa onboarding@resend.dev en sandbox/desarrollo por defecto o dominio verificado)
-DEFAULT_FROM = os.getenv("MAIL_FROM", "Recidron <onboarding@resend.dev>")
+DEFAULT_FROM = os.getenv("RESEND_FROM", "Recidron <onboarding@resend.dev>")
 
 
 async def enviar_email_recuperacion(email_destino: str, codigo: str) -> dict:
