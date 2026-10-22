@@ -1,28 +1,19 @@
 import os
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+import resend
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configuración de conexión para fastapi-mail
-conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME", "noreply@recidron.com"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    MAIL_FROM=os.getenv("MAIL_FROM", "noreply@recidron.com"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Soporte Recidron"),
-    MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True") == "True",
-    MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False") == "True",
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True
-)
+# Configurar API Key de Resend
+resend.api_key = os.getenv("RESEND_API_KEY", "")
 
-fast_mail = FastMail(conf)
+# Remitente configurado (usa onboarding@resend.dev en sandbox/desarrollo por defecto o dominio verificado)
+DEFAULT_FROM = os.getenv("RESEND_FROM", "Recidron <onboarding@resend.dev>")
 
-async def enviar_email_recuperacion(email_destino: str, codigo: str):
+
+async def enviar_email_recuperacion(email_destino: str, codigo: str) -> dict:
     """
-    Envía el código de recuperación (OTP) al usuario por correo electrónico.
+    Envía el código de recuperación (OTP) al usuario por correo electrónico mediante la API de Resend.
     """
     html = f"""
     <html>
@@ -41,11 +32,16 @@ async def enviar_email_recuperacion(email_destino: str, codigo: str):
     </html>
     """
 
-    message = MessageSchema(
-        subject="Tu Código de Recuperación de Contraseña",
-        recipients=[email_destino],
-        body=html,
-        subtype=MessageType.html
-    )
+    params: resend.Emails.SendParams = {
+        "from": DEFAULT_FROM,
+        "to": [email_destino],
+        "subject": "Tu Código de Recuperación de Contraseña",
+        "html": html,
+    }
 
-    await fast_mail.send_message(message)
+    try:
+        response = resend.Emails.send(params)
+        return response
+    except Exception as e:
+        print(f"Error enviando correo con Resend a {email_destino}: {e}")
+        raise
