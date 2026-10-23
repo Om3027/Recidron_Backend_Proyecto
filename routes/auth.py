@@ -55,6 +55,28 @@ def verificar_permiso(permiso_requerido: str):
     return verificador
 
 
+def verificar_super_admin(
+    usuario: dict = Depends(obtener_usuario_actual),
+) -> dict:
+    """
+    Verifica que el usuario actual tenga rol de administrador y sea el
+    Super Administrador oficial (admin@recidron.com).
+    """
+    import os
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@recidron.com").strip().lower()
+    user_email = (usuario.get("email") or "").strip().lower()
+    rol_nombre = (usuario.get("nombre_rol") or "").strip().lower()
+    rol_id = usuario.get("rol_id")
+
+    es_admin = rol_nombre == "admin" or rol_id == 1
+    if not (es_admin and user_email == admin_email):
+        raise HTTPException(
+            status_code=403,
+            detail="Acceso restringido: Se requieren permisos de Administrador Maestro para esta acción",
+        )
+    return usuario
+
+
 # ── Alias de compatibilidad (mantienen los nombres originales) ─────────────────
 # Permiten que las rutas que no se han migrado aún sigan funcionando sin cambios.
 
