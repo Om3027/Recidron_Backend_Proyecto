@@ -21,7 +21,8 @@ from models import init_db
 from routes import (
     router_roles, router_usuarios, router_sesiones, router_logs,
     router_tipos, router_materiales, router_zonas, router_tamanos,
-    router_reportes, router_geos, router_stats, router_subzonas
+    router_reportes, router_geos, router_stats, router_subzonas,
+    router_backups
 )
 
 
@@ -87,6 +88,7 @@ app.include_router(router_roles)
 app.include_router(router_usuarios)
 app.include_router(router_sesiones)
 app.include_router(router_logs)
+app.include_router(router_backups)
 
 # PGC — Recidron App
 app.include_router(router_tipos)

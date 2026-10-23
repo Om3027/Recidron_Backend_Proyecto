@@ -10,6 +10,7 @@ from .reportes import router_reportes
 from .geolocalizaciones import router_geos
 from .stats import router_stats
 from .subzonas import router_subzonas
+from .backups import router_backups
 
 __all__ = [
     "router_roles",
@@ -24,4 +25,5 @@ __all__ = [
     "router_geos",
     "router_stats",
     "router_subzonas",
+    "router_backups",
 ]

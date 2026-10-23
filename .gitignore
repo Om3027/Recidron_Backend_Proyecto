@@ -209,3 +209,8 @@ __marimo__/
 reset_db.py
 update_db.py
 drop_table.py
+
+# Backups
+backups/
+*.sql
+*.sql.gz
