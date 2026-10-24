@@ -42,8 +42,9 @@ def descargar_backup(
         filename=nombre_archivo,
         media_type="application/gzip",
         background=background_tasks,
+        # "filename" ya genera el Content-Disposition; el frontend lo lee gracias a expose_headers en main.py
         headers={
-            "Content-Disposition": f'attachment; filename="{nombre_archivo}"',
+            "Cache-Control": "no-store",
             "X-Backup-Size": str(tamano_bytes),
             "X-Backup-Size-Formatted": tamano_formateado,
         },

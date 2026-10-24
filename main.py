@@ -58,6 +58,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Encabezados que el navegador puede leer en descargas (nombre y tamaño del respaldo)
+    expose_headers=["Content-Disposition", "X-Backup-Size", "X-Backup-Size-Formatted"],
 )
 
 
